@@ -2,7 +2,7 @@
     "name": "Expense Manager",
     "short_name": "Expenses",
     "description": "Personal Expense Management App",
-    "start_url": "/index.html",
+    "start_url": "./",
     "display": "standalone",
     "background_color": "#1a1a2e",
     "theme_color": "#1a1a2e",
