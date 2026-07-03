@@ -70,23 +70,22 @@ function retrySyncQueue() {
     const queue = JSON.parse(localStorage.getItem('sync_queue') || '[]');
     if (queue.length === 0) return;
 
-    // Try to sync each queued item
-    const remaining = [];
-    queue.forEach(payload => {
+    const promises = queue.map(payload =>
         fetch(SHEETS_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
-        }).catch(() => {
-            remaining.push(payload);
-        });
-    });
+        }).then(() => ({ status: 'synced' }))
+         .catch(() => ({ status: 'failed', payload }))
+    );
 
-    // Keep only failed ones
-    setTimeout(() => {
+    Promise.all(promises).then(results => {
+        const remaining = results
+            .filter(r => r.status === 'failed')
+            .map(r => r.payload);
         localStorage.setItem('sync_queue', JSON.stringify(remaining));
-    }, 3000);
+    });
 }
 
 // Retry queued syncs when app loads and is online
@@ -111,17 +110,27 @@ const CATEGORIES = [
 ];
 
 function getExpenses() {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+    try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        return data ? JSON.parse(data) : [];
+    } catch (e) { return []; }
 }
 
 function saveExpenses(expenses) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+    } catch (e) {
+        if (e.name === 'QuotaExceededError') {
+            alert('Storage full. Please export a backup and clear old data from Settings.');
+        }
+    }
 }
 
 function getBudgets() {
-    const data = localStorage.getItem(BUDGET_KEY);
-    return data ? JSON.parse(data) : {};
+    try {
+        const data = localStorage.getItem(BUDGET_KEY);
+        return data ? JSON.parse(data) : {};
+    } catch (e) { return {}; }
 }
 
 function saveBudgets(budgets) {
@@ -129,12 +138,10 @@ function saveBudgets(budgets) {
 }
 
 function getFinances() {
-    const data = localStorage.getItem(FINANCES_KEY);
-    return data ? JSON.parse(data) : {
-        income: 114000,
-        bank: 113000,
-        investments: 184034
-    };
+    try {
+        const data = localStorage.getItem(FINANCES_KEY);
+        return data ? JSON.parse(data) : { income: 114000, bank: 113000, investments: 185099 };
+    } catch (e) { return { income: 114000, bank: 113000, investments: 185099 }; }
 }
 
 function saveFinances(finances) {
@@ -142,8 +149,9 @@ function saveFinances(finances) {
 }
 
 function getFixedExpenses() {
-    const data = localStorage.getItem(FIXED_KEY);
-    return data ? JSON.parse(data) : [
+    try {
+        const data = localStorage.getItem(FIXED_KEY);
+        return data ? JSON.parse(data) : [
         { name: 'Rent', amount: 15750, category: 'Bills' },
         { name: 'Education Loan EMI', amount: 19000, category: 'Bills' },
         { name: 'Brother', amount: 2000, category: 'Family' },
@@ -162,6 +170,7 @@ function getFixedExpenses() {
         { name: 'WiFi (quarterly avg)', amount: 1100, category: 'Bills' },
         { name: 'Bike Service (quarterly avg)', amount: 600, category: 'Others' }
     ];
+    } catch (e) { return []; }
 }
 
 function saveFixedExpenses(items) {
@@ -173,13 +182,15 @@ function getFixedTotal() {
 }
 
 function getGoals() {
-    const data = localStorage.getItem(GOALS_KEY);
-    return data ? JSON.parse(data) : [
-        { name: 'Emergency Fund', target: 600000, current: 0 },
-        { name: 'Investment Goal', target: 1000000, current: 184034 },
-        { name: 'Europe Trip', target: 250000, current: 0 },
-        { name: 'Loan Free', target: 1739311, current: 0 }
-    ];
+    try {
+        const data = localStorage.getItem(GOALS_KEY);
+        return data ? JSON.parse(data) : [
+            { name: 'Emergency Fund', target: 600000, current: 0 },
+            { name: 'Investment Goal', target: 1000000, current: 184034 },
+            { name: 'Europe Trip', target: 250000, current: 0 },
+            { name: 'Loan Free', target: 1739311, current: 0 }
+        ];
+    } catch (e) { return []; }
 }
 
 function saveGoals(goals) {
@@ -274,7 +285,7 @@ function getTodayFormatted() {
 
 // ==================== EXPENSE OPERATIONS ====================
 
-function addExpense(amount, reason, category, account) {
+function addExpense(amount, reason, category, account, tags) {
     const expenses = getExpenses();
     const expense = {
         id: generateId(),
@@ -282,7 +293,8 @@ function addExpense(amount, reason, category, account) {
         amount: parseFloat(amount),
         reason: reason || '',
         category: category || '',
-        account: account || ''
+        account: account || '',
+        tags: tags || ''
     };
     expenses.push(expense);
     saveExpenses(expenses);
@@ -330,10 +342,50 @@ function getCategorySpending() {
     return spending;
 }
 
+// Get last month's expenses for comparison
+function getLastMonthExpenses() {
+    const expenses = getExpenses();
+    const now = new Date();
+    const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+    const lastYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const targetMonth = months[lastMonth];
+    const targetYear = String(lastYear);
+
+    return expenses.filter(exp => {
+        const parts = exp.date.split(' ');
+        return parts[1] === targetMonth && parts[2] === targetYear;
+    });
+}
+
+// Get last month's category spending
+function getLastMonthCategorySpending() {
+    const expenses = getLastMonthExpenses();
+    const spending = {};
+    expenses.forEach(exp => {
+        const cat = exp.category || 'Others';
+        spending[cat] = (spending[cat] || 0) + exp.amount;
+    });
+    return spending;
+}
+
 // ==================== FORMAT HELPERS ====================
 
 function formatINR(amount) {
     return '₹' + Number(amount).toLocaleString('en-IN');
+}
+
+/**
+ * Escape HTML to prevent XSS when inserting user text into innerHTML.
+ */
+function escapeHTML(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#039;');
 }
 
 // ==================== SMART DEFAULTS ====================
@@ -444,23 +496,27 @@ function downloadFile(content, filename, mimeType) {
 
 // ==================== NAVIGATION ====================
 
-const pages = ['entry', 'history', 'budget', 'summary', 'export'];
+const pages = ['entry', 'history', 'budget', 'summary', 'analytics', 'export', 'settings'];
 
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
 
     document.getElementById(`page-${page}`).classList.add('active');
-    document.getElementById(`nav-${page}`).classList.add('active');
+    const navBtn = document.getElementById(`nav-${page}`);
+    if (navBtn) navBtn.classList.add('active');
 
     if (page === 'entry') updateEntryPage();
     if (page === 'history') renderHistory();
     if (page === 'budget') renderBudget();
     if (page === 'summary') renderSummary();
+    if (page === 'analytics') renderAnalytics();
+    if (page === 'settings') renderSettings();
 }
 
 pages.forEach(page => {
-    document.getElementById(`nav-${page}`).addEventListener('click', () => showPage(page));
+    const navEl = document.getElementById(`nav-${page}`);
+    if (navEl) navEl.addEventListener('click', () => showPage(page));
 });
 
 // ==================== ENTRY PAGE ====================
@@ -611,6 +667,31 @@ function updateEntryPage() {
 
     checkBudgetWarning();
 
+    // Spending velocity: project month-end spending
+    const velocityEl = document.getElementById('velocity-insight');
+    const velocityText = document.getElementById('velocity-text');
+    const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+
+    if (monthExpenses.length > 0 && dayOfMonth > 1) {
+        const dailyRate = monthTotal / dayOfMonth;
+        const projected = Math.round(dailyRate * daysInMonth);
+        const budgets = getBudgets();
+        const totalBudget = Object.values(budgets).reduce((sum, v) => sum + v, 0);
+
+        if (totalBudget > 0) {
+            if (projected > totalBudget) {
+                velocityText.innerHTML = `<span class="over-pace">At this pace, you'll spend ${formatINR(projected)} by month end — ${formatINR(projected - totalBudget)} over budget</span>`;
+            } else {
+                velocityText.innerHTML = `<span class="on-track">Projected: ${formatINR(projected)} by month end — within budget</span>`;
+            }
+        } else {
+            velocityText.innerHTML = `<span>Projected: ${formatINR(projected)} by month end</span>`;
+        }
+        velocityEl.classList.remove('hidden');
+    } else {
+        velocityEl.classList.add('hidden');
+    }
+
     // Render today's transactions
     renderTodayTransactions();
 }
@@ -631,8 +712,8 @@ function renderTodayTransactions() {
     list.innerHTML = reversed.map(exp => `
         <div class="today-tx-item">
             <div class="today-tx-left">
-                <span class="today-tx-reason">${exp.reason || exp.category || 'Expense'}</span>
-                <span class="today-tx-meta">${exp.category ? exp.category : ''}${exp.account ? ' · ' + exp.account : ''}</span>
+                <span class="today-tx-reason">${escapeHTML(exp.reason || exp.category || 'Expense')}</span>
+                <span class="today-tx-meta">${escapeHTML(exp.category)}${exp.account ? ' · ' + escapeHTML(exp.account) : ''}</span>
             </div>
             <span class="today-tx-amount">${formatINR(exp.amount)}</span>
         </div>
@@ -640,6 +721,92 @@ function renderTodayTransactions() {
 }
 
 updateEntryPage();
+
+// ==================== AUTO-LOG FIXED EXPENSES ====================
+
+const AUTOLOG_KEY = 'autolog_done';
+
+/**
+ * Check if fixed expenses have been auto-logged this month.
+ * If not, show a prompt to auto-log them.
+ */
+function checkAutoLog() {
+    const { month, year } = getCurrentMonth();
+    const key = `${year}-${month}`;
+    const done = JSON.parse(localStorage.getItem(AUTOLOG_KEY) || '{}');
+
+    if (done[key]) return; // Already logged this month
+
+    const fixedExpenses = getFixedExpenses();
+    if (fixedExpenses.length === 0) return;
+
+    // Show auto-log prompt
+    showAutoLogPrompt(fixedExpenses, key);
+}
+
+function showAutoLogPrompt(fixedExpenses, monthKey) {
+    const total = fixedExpenses.reduce((sum, item) => sum + item.amount, 0);
+
+    const prompt = document.createElement('div');
+    prompt.className = 'autolog-prompt';
+    prompt.id = 'autolog-prompt';
+    prompt.innerHTML = `
+        <div class="autolog-content">
+            <span class="autolog-title">Log fixed expenses for this month?</span>
+            <span class="autolog-detail">${fixedExpenses.length} items · ${formatINR(total)}</span>
+            <div class="autolog-actions">
+                <button id="autolog-skip" class="autolog-btn-skip">Skip</button>
+                <button id="autolog-confirm" class="autolog-btn-confirm">Log All</button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('page-entry').insertBefore(prompt, document.getElementById('expense-form'));
+
+    document.getElementById('autolog-confirm').addEventListener('click', () => {
+        autoLogFixedExpenses(fixedExpenses, monthKey);
+        prompt.remove();
+    });
+
+    document.getElementById('autolog-skip').addEventListener('click', () => {
+        const done = JSON.parse(localStorage.getItem(AUTOLOG_KEY) || '{}');
+        done[monthKey] = 'skipped';
+        localStorage.setItem(AUTOLOG_KEY, JSON.stringify(done));
+        prompt.remove();
+    });
+}
+
+function autoLogFixedExpenses(fixedExpenses, monthKey) {
+    const { month, year } = getCurrentMonth();
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const firstOfMonth = `01 ${months[month]} ${year}`;
+
+    // Batch: read once, push all, save once
+    const expenses = getExpenses();
+    fixedExpenses.forEach(item => {
+        const expense = {
+            id: generateId(),
+            date: firstOfMonth,
+            amount: item.amount,
+            reason: item.name,
+            category: item.category || 'Bills',
+            account: '',
+            auto: true
+        };
+        expenses.push(expense);
+        syncToGoogleSheets(expense);
+    });
+    saveExpenses(expenses);
+
+    // Mark as done
+    const done = JSON.parse(localStorage.getItem(AUTOLOG_KEY) || '{}');
+    done[monthKey] = 'logged';
+    localStorage.setItem(AUTOLOG_KEY, JSON.stringify(done));
+
+    updateEntryPage();
+}
+
+checkAutoLog();
 
 // Form submit
 expenseForm.addEventListener('submit', function(e) {
@@ -653,10 +820,16 @@ expenseForm.addEventListener('submit', function(e) {
         return;
     }
 
-    addExpense(amount, reasonInput.value.trim(), selectedCategory, selectedAccount);
+    const tags = document.getElementById('tags-input').value.trim();
+    addExpense(amount, reasonInput.value.trim(), selectedCategory, selectedAccount, tags);
 
     // Update streak
-    updateStreak();
+    const newStreak = updateStreak();
+
+    // Pulse animation if streak incremented
+    const streakEl = document.getElementById('streak-badge');
+    streakEl.classList.add('streak-pulse');
+    setTimeout(() => streakEl.classList.remove('streak-pulse'), 400);
 
     // Success feedback
     successMessage.classList.remove('hidden');
@@ -665,6 +838,7 @@ expenseForm.addEventListener('submit', function(e) {
     // Reset (keep category and account sticky)
     amountInput.value = '';
     reasonInput.value = '';
+    document.getElementById('tags-input').value = '';
     amountInput.focus();
 
     // Refresh stats
@@ -766,6 +940,85 @@ function renderInsights(expenses) {
     insightsCard.classList.remove('hidden');
 }
 
+function renderMoMComparison(expenses) {
+    const momEl = document.getElementById('mom-comparison');
+    const momText = document.getElementById('mom-text');
+    const lastMonthExpenses = getLastMonthExpenses();
+
+    if (lastMonthExpenses.length === 0 || expenses.length === 0) {
+        momEl.classList.add('hidden');
+        return;
+    }
+
+    const currentTotal = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const lastTotal = lastMonthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const diff = currentTotal - lastTotal;
+
+    if (diff < 0) {
+        momText.innerHTML = `<span class="mom-positive">↓ ${formatINR(Math.abs(diff))} less than last month</span>`;
+    } else if (diff > 0) {
+        momText.innerHTML = `<span class="mom-negative">↑ ${formatINR(diff)} more than last month</span>`;
+    } else {
+        momText.innerHTML = `<span>Same as last month</span>`;
+    }
+    momEl.classList.remove('hidden');
+}
+
+function renderCategoryTrends(expenses) {
+    const trendsEl = document.getElementById('category-trends');
+    const lastMonthSpending = getLastMonthCategorySpending();
+    const currentSpending = getCategorySpending();
+
+    // Only show if we have last month data
+    if (Object.keys(lastMonthSpending).length === 0) {
+        trendsEl.classList.add('hidden');
+        return;
+    }
+
+    // Get categories that exist in either month
+    const allCats = new Set([...Object.keys(currentSpending), ...Object.keys(lastMonthSpending)]);
+    const trends = [];
+
+    allCats.forEach(cat => {
+        const current = currentSpending[cat] || 0;
+        const last = lastMonthSpending[cat] || 0;
+        if (last === 0 && current === 0) return;
+
+        let percentChange = 0;
+        if (last > 0) {
+            percentChange = Math.round(((current - last) / last) * 100);
+        } else if (current > 0) {
+            percentChange = 100; // New category
+        }
+
+        if (Math.abs(percentChange) >= 10) { // Only show meaningful changes (10%+)
+            trends.push({ cat, current, percentChange });
+        }
+    });
+
+    if (trends.length === 0) {
+        trendsEl.classList.add('hidden');
+        return;
+    }
+
+    // Sort by absolute change (biggest movers first)
+    trends.sort((a, b) => Math.abs(b.percentChange) - Math.abs(a.percentChange));
+
+    // Show top 5
+    trendsEl.innerHTML = trends.slice(0, 5).map(t => {
+        const isUp = t.percentChange > 0;
+        return `<div class="trend-item">
+            <div class="trend-item-left">
+                <span class="trend-item-arrow ${isUp ? 'up' : 'down'}">${isUp ? '↑' : '↓'}${Math.abs(t.percentChange)}%</span>
+                <span class="trend-item-name">${t.cat}</span>
+            </div>
+            <span class="trend-item-amount">${formatINR(t.current)}</span>
+        </div>`;
+    }).join('');
+
+    trendsEl.classList.remove('hidden');
+}
+
 function renderHistory() {
     const expenses = getCurrentMonthExpenses();
     const historyList = document.getElementById('history-list');
@@ -780,6 +1033,8 @@ function renderHistory() {
 
     renderPieChart(expenses);
     renderInsights(expenses);
+    renderMoMComparison(expenses);
+    renderCategoryTrends(expenses);
 
     if (expenses.length === 0) {
         historyList.innerHTML = '<p class="empty-state">No expenses yet this month.</p>';
@@ -790,8 +1045,8 @@ function renderHistory() {
     historyList.innerHTML = reversed.map(exp => `
         <div class="history-item">
             <div class="history-item-left">
-                <span class="history-item-reason">${exp.reason || exp.category || 'Expense'}</span>
-                <span class="history-item-meta">${exp.date}${exp.category ? ' · ' + exp.category : ''}${exp.account ? ' · ' + exp.account : ''}</span>
+                <span class="history-item-reason">${escapeHTML(exp.reason || exp.category || 'Expense')}</span>
+                <span class="history-item-meta">${exp.date}${exp.category ? ' · ' + escapeHTML(exp.category) : ''}${exp.account ? ' · ' + escapeHTML(exp.account) : ''}</span>
             </div>
             <span class="history-item-amount">${formatINR(exp.amount)}</span>
             <button class="history-item-delete" onclick="handleDelete('${exp.id}')" aria-label="Delete expense">×</button>
@@ -799,12 +1054,46 @@ function renderHistory() {
     `).join('');
 }
 
+let lastDeletedExpense = null;
+let undoTimeout = null;
+
 function handleDelete(id) {
-    if (confirm('Delete this expense?')) {
-        deleteExpense(id);
+    // Get the expense before deleting
+    const expenses = getExpenses();
+    lastDeletedExpense = expenses.find(exp => exp.id === id);
+
+    // Delete it
+    deleteExpense(id);
+    renderHistory();
+
+    // Show undo toast
+    const undoToast = document.getElementById('undo-toast');
+    undoToast.classList.remove('hidden');
+
+    // Auto-dismiss after 4 seconds
+    clearTimeout(undoTimeout);
+    undoTimeout = setTimeout(() => {
+        undoToast.classList.add('hidden');
+        lastDeletedExpense = null;
+    }, 4000);
+}
+
+// Undo button
+document.getElementById('undo-btn').addEventListener('click', () => {
+    if (lastDeletedExpense) {
+        // Restore the expense
+        const expenses = getExpenses();
+        expenses.push(lastDeletedExpense);
+        saveExpenses(expenses);
+        syncToGoogleSheets(lastDeletedExpense); // Re-sync to sheet
+
+        lastDeletedExpense = null;
+        clearTimeout(undoTimeout);
+        document.getElementById('undo-toast').classList.add('hidden');
+
         renderHistory();
     }
-}
+});
 
 // ==================== BUDGET PAGE ====================
 
@@ -816,8 +1105,11 @@ function renderBudget() {
     let totalSpent = 0;
 
     CATEGORIES.forEach(cat => {
-        if (budgets[cat]) totalBudget += budgets[cat];
-        if (spending[cat]) totalSpent += spending[cat];
+        if (budgets[cat]) {
+            totalBudget += budgets[cat];
+            // Only count spending in categories that HAVE a budget set
+            if (spending[cat]) totalSpent += spending[cat];
+        }
     });
 
     const remaining = totalBudget - totalSpent;
@@ -903,7 +1195,9 @@ function renderSummary() {
     const expenses = getCurrentMonthExpenses();
     const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
-    const netWorth = (finances.bank || 0) + (finances.investments || 0);
+    // Net Worth = Bank + Investments - Variable Spending this month
+    // (Fixed expenses already reduced bank balance before you recorded it)
+    const netWorth = (finances.bank || 0) + (finances.investments || 0) - totalSpent;
     const fixedTotal = getFixedTotal();
     const saved = Math.max(0, finances.income - fixedTotal - totalSpent);
     const savingsRate = finances.income > 0 ? (saved / finances.income) * 100 : 0;
@@ -940,7 +1234,7 @@ function renderGoals() {
         const remaining = Math.max(0, goal.target - goal.current);
         return `<div class="goal-item">
             <div class="goal-item-header">
-                <span class="goal-item-name">${goal.name}</span>
+                <span class="goal-item-name">${escapeHTML(goal.name)}</span>
                 <span class="goal-item-percent">${percent.toFixed(0)}%</span>
             </div>
             <div class="goal-item-bar">
@@ -1006,8 +1300,8 @@ function renderFixedExpenses() {
         html += expenses.map(item => `
             <div class="fixed-item">
                 <div class="fixed-item-left">
-                    <span class="fixed-item-name">${item.name}</span>
-                    <span class="fixed-item-category">${item.category || ''}</span>
+                    <span class="fixed-item-name">${escapeHTML(item.name)}</span>
+                    <span class="fixed-item-category">${escapeHTML(item.category || '')}</span>
                 </div>
                 <span class="fixed-item-amount">${formatINR(item.amount)}</span>
             </div>
@@ -1020,8 +1314,8 @@ function renderFixedExpenses() {
         html += investments.map(item => `
             <div class="fixed-item">
                 <div class="fixed-item-left">
-                    <span class="fixed-item-name">${item.name}</span>
-                    <span class="fixed-item-category">${item.category}</span>
+                    <span class="fixed-item-name">${escapeHTML(item.name)}</span>
+                    <span class="fixed-item-category">${escapeHTML(item.category)}</span>
                 </div>
                 <span class="fixed-item-amount">${formatINR(item.amount)}</span>
             </div>
@@ -1152,6 +1446,259 @@ document.getElementById('save-goals-btn').addEventListener('click', () => {
     renderSummary();
 });
 
+// ==================== ANALYTICS PAGE ====================
+
+function renderAnalytics() {
+    renderHealthScore();
+    renderAccountSpending();
+    renderMonthlyReport();
+    renderSubscriptions();
+}
+
+function renderHealthScore() {
+    const finances = getFinances();
+    const expenses = getCurrentMonthExpenses();
+    const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const fixedTotal = getFixedTotal();
+    const budgets = getBudgets();
+    const totalBudget = Object.values(budgets).reduce((sum, v) => sum + v, 0);
+    const goals = getGoals();
+
+    // Calculate score components (each out of 25, total 100)
+    // 1. Savings Rate (25 pts) — 20%+ = full marks
+    const savingsRate = finances.income > 0 ? ((finances.income - fixedTotal - totalSpent) / finances.income) : 0;
+    const savingsScore = Math.min(25, Math.max(0, Math.round(savingsRate * 125)));
+
+    // 2. Budget Adherence (25 pts) — spending within budget
+    let budgetScore = 25; // Full if no budget set
+    if (totalBudget > 0) {
+        const spending = getCategorySpending();
+        // Only count spending in categories that have budgets
+        let budgetedSpent = 0;
+        Object.keys(budgets).forEach(cat => {
+            if (budgets[cat] > 0 && spending[cat]) {
+                budgetedSpent += spending[cat];
+            }
+        });
+        budgetScore = budgetedSpent <= totalBudget ? 25 : Math.max(0, Math.round((1 - (budgetedSpent - totalBudget) / totalBudget) * 25));
+    }
+
+    // 3. Goal Progress (25 pts) — based on nearest goal
+    const goalProgress = goals.length > 0 ? goals.reduce((sum, g) => sum + (g.target > 0 ? Math.min(1, g.current / g.target) : 0), 0) / goals.length : 0;
+    const goalScore = Math.round(goalProgress * 25);
+
+    // 4. Consistency (25 pts) — tracking streak
+    const streak = getCurrentStreak();
+    const consistencyScore = Math.min(25, streak); // 1 point per day, max 25
+
+    const totalScore = savingsScore + budgetScore + goalScore + consistencyScore;
+
+    // Update ring
+    const ring = document.getElementById('health-ring');
+    const circumference = 327; // 2 * PI * 52
+    const offset = circumference - (totalScore / 100) * circumference;
+    ring.style.strokeDashoffset = offset;
+
+    // Color the ring based on score
+    if (totalScore >= 75) ring.style.stroke = 'var(--positive)';
+    else if (totalScore >= 50) ring.style.stroke = 'var(--accent)';
+    else if (totalScore >= 25) ring.style.stroke = 'var(--warning)';
+    else ring.style.stroke = 'var(--negative)';
+
+    document.getElementById('health-score').textContent = totalScore;
+
+    // Rating
+    let rating = 'Needs Work';
+    if (totalScore >= 80) rating = 'Excellent';
+    else if (totalScore >= 60) rating = 'Good';
+    else if (totalScore >= 40) rating = 'Fair';
+    document.getElementById('health-rating').textContent = rating;
+
+    // Breakdown
+    document.getElementById('score-breakdown').innerHTML = [
+        { name: 'Savings Rate', detail: `${Math.round(savingsRate * 100)}% of income`, points: savingsScore },
+        { name: 'Budget Adherence', detail: totalBudget > 0 ? 'Within limits' : 'No budget set', points: budgetScore },
+        { name: 'Goal Progress', detail: `${Math.round(goalProgress * 100)}% average`, points: goalScore },
+        { name: 'Tracking Consistency', detail: `${streak} day streak`, points: consistencyScore }
+    ].map(f => {
+        const cls = f.points >= 20 ? 'good' : f.points >= 10 ? 'mid' : 'low';
+        return `<div class="score-factor">
+            <div class="score-factor-left">
+                <span class="score-factor-name">${f.name}</span>
+                <span class="score-factor-detail">${f.detail}</span>
+            </div>
+            <span class="score-factor-points ${cls}">${f.points}/25</span>
+        </div>`;
+    }).join('');
+}
+
+function renderAccountSpending() {
+    const expenses = getCurrentMonthExpenses();
+    const accountTotals = {};
+
+    expenses.forEach(exp => {
+        const acc = exp.account || 'Unspecified';
+        accountTotals[acc] = (accountTotals[acc] || 0) + exp.amount;
+    });
+
+    const sorted = Object.entries(accountTotals).sort((a, b) => b[1] - a[1]);
+    const list = document.getElementById('account-spending-list');
+
+    if (sorted.length === 0) {
+        list.innerHTML = '<p class="empty-state" style="padding:var(--space-4) 0">No spending data yet.</p>';
+        return;
+    }
+
+    list.innerHTML = sorted.map(([name, amount]) => `
+        <div class="account-spend-item">
+            <span class="account-spend-name">${name}</span>
+            <span class="account-spend-amount">${formatINR(amount)}</span>
+        </div>
+    `).join('');
+}
+
+function renderMonthlyReport() {
+    const finances = getFinances();
+    const expenses = getCurrentMonthExpenses();
+    const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const fixedTotal = getFixedTotal();
+    const saved = Math.max(0, finances.income - fixedTotal - totalSpent);
+    const savingsRate = finances.income > 0 ? Math.round((saved / finances.income) * 100) : 0;
+    const dayOfMonth = new Date().getDate();
+    const dailyAvg = dayOfMonth > 0 ? Math.round(totalSpent / dayOfMonth) : 0;
+    const highest = expenses.length > 0 ? Math.max(...expenses.map(e => e.amount)) : 0;
+
+    const report = document.getElementById('monthly-report');
+    report.innerHTML = `
+        <div class="report-row"><span>Total Income</span><span>${formatINR(finances.income)}</span></div>
+        <div class="report-row"><span>Fixed Expenses</span><span>${formatINR(fixedTotal)}</span></div>
+        <div class="report-row"><span>Variable Spending</span><span>${formatINR(totalSpent)}</span></div>
+        <div class="report-row"><span>Total Saved</span><span class="positive">${formatINR(saved)}</span></div>
+        <div class="report-row"><span>Savings Rate</span><span class="positive">${savingsRate}%</span></div>
+        <div class="report-row"><span>Daily Average</span><span>${formatINR(dailyAvg)}</span></div>
+        <div class="report-row"><span>Highest Single Expense</span><span>${formatINR(highest)}</span></div>
+        <div class="report-row"><span>Total Entries</span><span>${expenses.length}</span></div>
+    `;
+}
+
+function renderSubscriptions() {
+    const fixed = getFixedExpenses();
+    const subs = fixed.filter(item => item.category === 'Subscription');
+    const list = document.getElementById('subscription-list');
+
+    if (subs.length === 0) {
+        list.innerHTML = '<p class="empty-state" style="padding:var(--space-4) 0">No subscriptions tracked.</p>';
+        return;
+    }
+
+    const total = subs.reduce((sum, s) => sum + s.amount, 0);
+    list.innerHTML = subs.map(s => `
+        <div class="sub-item">
+            <span class="sub-item-name">${s.name}</span>
+            <span class="sub-item-amount">${formatINR(s.amount)}/mo</span>
+        </div>
+    `).join('') + `
+        <div class="sub-item" style="border-top:1px solid var(--border-subtle);margin-top:var(--space-2);padding-top:var(--space-3)">
+            <span class="sub-item-name" style="font-weight:600">Total</span>
+            <span class="sub-item-amount" style="color:var(--accent);font-weight:600">${formatINR(total)}/mo</span>
+        </div>
+    `;
+}
+
+// ==================== SPLIT EXPENSE ====================
+
+document.getElementById('split-btn').addEventListener('click', () => {
+    // Pre-fill with amount if already typed
+    const currentAmount = document.getElementById('amount').value;
+    if (currentAmount) {
+        document.getElementById('split-amount').value = currentAmount;
+    }
+    document.getElementById('split-modal').classList.remove('hidden');
+});
+
+document.getElementById('close-split-modal').addEventListener('click', () => {
+    document.getElementById('split-modal').classList.add('hidden');
+});
+
+document.getElementById('split-calculate').addEventListener('click', () => {
+    const total = parseFloat(document.getElementById('split-amount').value) || 0;
+    const people = parseInt(document.getElementById('split-people').value) || 2;
+
+    if (total > 0 && people >= 2) {
+        const share = Math.ceil(total / people);
+        document.getElementById('split-your-share').textContent = formatINR(share);
+        document.getElementById('split-result').classList.remove('hidden');
+    }
+});
+
+document.getElementById('split-use').addEventListener('click', () => {
+    const share = document.getElementById('split-your-share').textContent;
+    if (share && share !== '₹0') {
+        // Extract number from formatted string
+        const amount = parseInt(share.replace(/[₹,]/g, ''));
+        document.getElementById('amount').value = amount;
+        document.getElementById('split-modal').classList.add('hidden');
+        document.getElementById('split-result').classList.add('hidden');
+    }
+});
+
+// ==================== INCOME ENTRY ====================
+
+const INCOME_KEY = 'income_log';
+
+function getIncomeLog() {
+    const data = localStorage.getItem(INCOME_KEY);
+    return data ? JSON.parse(data) : [];
+}
+
+function saveIncomeLog(log) {
+    localStorage.setItem(INCOME_KEY, JSON.stringify(log));
+}
+
+document.getElementById('log-income-btn').addEventListener('click', () => {
+    document.getElementById('income-modal').classList.remove('hidden');
+});
+
+document.getElementById('close-income-modal').addEventListener('click', () => {
+    document.getElementById('income-modal').classList.add('hidden');
+});
+
+document.getElementById('save-income-btn').addEventListener('click', () => {
+    const amount = parseFloat(document.getElementById('income-amount').value) || 0;
+    const source = document.getElementById('income-source').value.trim();
+    const account = document.getElementById('income-account').value;
+
+    if (amount <= 0) return;
+
+    const log = getIncomeLog();
+    log.push({
+        id: generateId(),
+        date: formatDate(new Date()),
+        amount: amount,
+        source: source || 'Income',
+        account: account || ''
+    });
+    saveIncomeLog(log);
+
+    // Clear and close
+    document.getElementById('income-amount').value = '';
+    document.getElementById('income-source').value = '';
+    document.getElementById('income-account').value = '';
+    document.getElementById('income-modal').classList.add('hidden');
+
+    // Show success
+    const msg = document.getElementById('success-message');
+    msg.querySelector('span').textContent = '✓ Income logged';
+    msg.classList.remove('hidden');
+    setTimeout(() => {
+        msg.querySelector('span').textContent = '✓ Saved';
+        msg.classList.add('hidden');
+    }, 1500);
+});
+
+// ==================== TAGS HANDLING ====================
+// Tags are stored with each expense. The tags-input value is read during form submit.
+
 // ==================== EXPORT & BACKUP ====================
 
 document.getElementById('export-csv').addEventListener('click', () => {
@@ -1238,6 +1785,265 @@ document.getElementById('restore-file-input').addEventListener('change', (e) => 
     // Reset file input so same file can be selected again
     e.target.value = '';
 });
+
+// ==================== ONBOARDING ====================
+
+const ONBOARDING_KEY = 'onboarding_complete';
+const CUSTOM_CATEGORIES_KEY = 'custom_categories';
+const CUSTOM_ACCOUNTS_KEY = 'custom_accounts';
+
+function isOnboardingDone() {
+    return localStorage.getItem(ONBOARDING_KEY) === 'true';
+}
+
+function getCustomCategories() {
+    const data = localStorage.getItem(CUSTOM_CATEGORIES_KEY);
+    return data ? JSON.parse(data) : [...CATEGORIES]; // Default categories
+}
+
+function saveCustomCategories(cats) {
+    localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(cats));
+}
+
+function getCustomAccounts() {
+    const data = localStorage.getItem(CUSTOM_ACCOUNTS_KEY);
+    return data ? JSON.parse(data) : [
+        { name: 'SBI Savings', label: 'SBI' },
+        { name: 'ICICI Salary Account', label: 'ICICI' },
+        { name: 'HDFC Millennia', label: 'Millennia' },
+        { name: 'HDFC Swiggy', label: 'Swiggy' },
+        { name: 'ICICI Rubyx', label: 'Rubyx' },
+        { name: 'Scapia', label: 'Scapia' }
+    ];
+}
+
+function saveCustomAccounts(accounts) {
+    localStorage.setItem(CUSTOM_ACCOUNTS_KEY, JSON.stringify(accounts));
+}
+
+// Show onboarding if first time (but skip if data already exists)
+if (!isOnboardingDone() || localStorage.getItem('force_onboarding') === 'true') {
+    if (localStorage.getItem('force_onboarding') === 'true') {
+        // User explicitly requested onboarding reset
+        localStorage.removeItem('force_onboarding');
+        document.getElementById('onboarding').classList.remove('hidden');
+    } else if (getExpenses().length > 0) {
+        // Existing user, first upgrade — skip silently
+        localStorage.setItem(ONBOARDING_KEY, 'true');
+    } else {
+        // Truly new user
+        document.getElementById('onboarding').classList.remove('hidden');
+    }
+}
+
+function nextOnboardStep(step) {
+    document.querySelectorAll('.onboarding-screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(`onboard-${step}`).classList.add('active');
+
+    // Update dots
+    document.querySelectorAll('.onboard-dot').forEach((d, i) => {
+        d.classList.toggle('active', i === step - 1);
+    });
+}
+
+function completeOnboarding() {
+    // Save income
+    const income = parseFloat(document.getElementById('onboard-income').value) || 114000;
+    const finances = getFinances();
+    finances.income = income;
+    saveFinances(finances);
+
+    // Save selected accounts with proper short labels
+    const checkboxes = document.querySelectorAll('#onboard-accounts input[type="checkbox"]');
+    const labelMap = {
+        'SBI Savings': 'SBI',
+        'ICICI Salary Account': 'ICICI',
+        'HDFC Millennia': 'Millennia',
+        'HDFC Swiggy': 'Swiggy',
+        'ICICI Rubyx': 'Rubyx',
+        'Scapia': 'Scapia'
+    };
+    const selectedAccounts = [];
+    checkboxes.forEach(cb => {
+        if (cb.checked) {
+            const name = cb.value;
+            const label = labelMap[name] || name;
+            selectedAccounts.push({ name, label });
+        }
+    });
+    if (selectedAccounts.length > 0) {
+        saveCustomAccounts(selectedAccounts);
+    }
+
+    // Mark done
+    localStorage.setItem(ONBOARDING_KEY, 'true');
+    document.getElementById('onboarding').classList.add('hidden');
+
+    // Rebuild chips with selected accounts
+    rebuildAccountChips();
+}
+
+// Rebuild category chips from custom list
+function rebuildCategoryChips() {
+    const cats = getCustomCategories();
+    const container = document.getElementById('category-chips');
+    container.innerHTML = cats.map(cat =>
+        `<button type="button" class="chip" data-value="${cat}">${cat}</button>`
+    ).join('');
+
+    // Re-attach event listeners
+    container.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            container.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+            if (selectedCategory === chip.dataset.value) {
+                selectedCategory = '';
+            } else {
+                chip.classList.add('selected');
+                selectedCategory = chip.dataset.value;
+            }
+            checkBudgetWarning();
+        });
+    });
+}
+
+// Rebuild account chips from custom list
+function rebuildAccountChips() {
+    const accounts = getCustomAccounts();
+    const container = document.getElementById('account-chips');
+    container.innerHTML = accounts.map(acc =>
+        `<button type="button" class="chip" data-value="${acc.name}">${acc.label}</button>`
+    ).join('');
+
+    // Re-attach event listeners
+    container.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            container.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+            if (selectedAccount === chip.dataset.value) {
+                selectedAccount = '';
+            } else {
+                chip.classList.add('selected');
+                selectedAccount = chip.dataset.value;
+            }
+        });
+    });
+}
+
+// ==================== SETTINGS PAGE ====================
+
+function renderSettings() {
+    renderCategorySettings();
+    renderAccountSettings();
+}
+
+function renderCategorySettings() {
+    const cats = getCustomCategories();
+    const list = document.getElementById('custom-categories-list');
+    list.innerHTML = cats.map(cat => `
+        <div class="settings-item">
+            <span>${escapeHTML(cat)}</span>
+            <button class="settings-item-delete" onclick="deleteCategory('${escapeHTML(cat)}')">×</button>
+        </div>
+    `).join('');
+}
+
+function renderAccountSettings() {
+    const accounts = getCustomAccounts();
+    const list = document.getElementById('custom-accounts-list');
+    list.innerHTML = accounts.map(acc => `
+        <div class="settings-item">
+            <span>${escapeHTML(acc.name)} (${escapeHTML(acc.label)})</span>
+            <button class="settings-item-delete" onclick="deleteAccount('${escapeHTML(acc.name)}')">×</button>
+        </div>
+    `).join('');
+}
+
+function deleteCategory(cat) {
+    const cats = getCustomCategories().filter(c => c !== cat);
+    saveCustomCategories(cats);
+    rebuildCategoryChips();
+    renderCategorySettings();
+}
+
+function deleteAccount(name) {
+    const accounts = getCustomAccounts().filter(a => a.name !== name);
+    saveCustomAccounts(accounts);
+    rebuildAccountChips();
+    renderAccountSettings();
+}
+
+// Add Category Modal
+document.getElementById('add-category-btn').addEventListener('click', () => {
+    document.getElementById('new-cat-name').value = '';
+    document.getElementById('add-cat-modal').classList.remove('hidden');
+});
+
+document.getElementById('close-cat-modal').addEventListener('click', () => {
+    document.getElementById('add-cat-modal').classList.add('hidden');
+});
+
+document.getElementById('save-new-cat').addEventListener('click', () => {
+    const name = document.getElementById('new-cat-name').value.trim();
+    if (!name) return;
+
+    const cats = getCustomCategories();
+    if (!cats.includes(name)) {
+        cats.push(name);
+        saveCustomCategories(cats);
+        rebuildCategoryChips();
+        renderCategorySettings();
+    }
+    document.getElementById('add-cat-modal').classList.add('hidden');
+});
+
+// Add Account Modal
+document.getElementById('add-account-btn').addEventListener('click', () => {
+    document.getElementById('new-acc-name').value = '';
+    document.getElementById('new-acc-short').value = '';
+    document.getElementById('add-acc-modal').classList.remove('hidden');
+});
+
+document.getElementById('close-acc-modal').addEventListener('click', () => {
+    document.getElementById('add-acc-modal').classList.add('hidden');
+});
+
+document.getElementById('save-new-acc').addEventListener('click', () => {
+    const name = document.getElementById('new-acc-name').value.trim();
+    const label = document.getElementById('new-acc-short').value.trim() || name;
+    if (!name) return;
+
+    const accounts = getCustomAccounts();
+    if (!accounts.find(a => a.name === name)) {
+        accounts.push({ name, label });
+        saveCustomAccounts(accounts);
+        rebuildAccountChips();
+        renderAccountSettings();
+    }
+    document.getElementById('add-acc-modal').classList.add('hidden');
+});
+
+// Reset Onboarding
+document.getElementById('reset-onboarding-btn').addEventListener('click', () => {
+    if (confirm('This will show the onboarding setup next time you open the app. Continue?')) {
+        localStorage.removeItem(ONBOARDING_KEY);
+        localStorage.setItem('force_onboarding', 'true');
+        alert('Onboarding will show on next app open.');
+    }
+});
+
+// Clear All Data
+document.getElementById('clear-all-data-btn').addEventListener('click', () => {
+    if (confirm('This will DELETE ALL your data (expenses, budgets, goals, everything). This cannot be undone. Are you absolutely sure?')) {
+        if (confirm('Last chance — all data will be permanently lost. Continue?')) {
+            localStorage.clear();
+            alert('All data cleared. The app will reload.');
+            window.location.reload();
+        }
+    }
+});
+
+// Initialize custom chips on load
+rebuildCategoryChips();
+rebuildAccountChips();
 
 // ==================== PWA ====================
 
