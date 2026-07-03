@@ -78,10 +78,10 @@
                     >
                 </div>
 
-                <!-- Category: Chip/Pill Buttons -->
+                <!-- Category: Horizontally scrollable chips -->
                 <div class="chips-section">
                     <span class="chips-label">Category</span>
-                    <div class="chips-container" id="category-chips">
+                    <div class="chips-scroll" id="category-chips">
                         <button type="button" class="chip" data-value="Food">Food</button>
                         <button type="button" class="chip" data-value="Grocery">Grocery</button>
                         <button type="button" class="chip" data-value="Fuel">Fuel</button>
@@ -99,10 +99,10 @@
                     </div>
                 </div>
 
-                <!-- Account: Chip Buttons -->
+                <!-- Account: Horizontally scrollable chips -->
                 <div class="chips-section">
                     <span class="chips-label">Account</span>
-                    <div class="chips-container" id="account-chips">
+                    <div class="chips-scroll" id="account-chips">
                         <button type="button" class="chip" data-value="SBI Savings">SBI</button>
                         <button type="button" class="chip" data-value="ICICI Salary Account">ICICI</button>
                         <button type="button" class="chip" data-value="HDFC Millennia">Millennia</button>
@@ -250,17 +250,24 @@
                 </div>
             </div>
 
-            <!-- Fixed Expenses -->
+            <!-- Fixed Expenses (Collapsible) -->
             <div class="summary-section">
                 <div class="section-header">
                     <h3>Fixed Expenses</h3>
-                    <button id="edit-fixed-btn" class="small-btn">Edit</button>
+                    <div class="section-header-right">
+                        <span class="section-header-amount" id="fixed-total-display">₹0</span>
+                        <button id="edit-fixed-btn" class="small-btn">Edit</button>
+                    </div>
                 </div>
-                <div class="fixed-total-row">
-                    <span>Monthly Total</span>
-                    <span id="fixed-total-display">₹0</span>
+                <div class="accordion" id="fixed-accordion">
+                    <button class="accordion-toggle" id="toggle-fixed">
+                        <span>View breakdown</span>
+                        <svg viewBox="0 0 24 24" class="accordion-icon"><path d="M7 10l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </button>
+                    <div class="accordion-content hidden" id="fixed-content">
+                        <div id="fixed-expenses-list" class="fixed-expenses-list"></div>
+                    </div>
                 </div>
-                <div id="fixed-expenses-list" class="fixed-expenses-list"></div>
             </div>
 
             <!-- Finances -->
