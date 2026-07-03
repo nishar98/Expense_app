@@ -14,11 +14,13 @@ const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxQKG6GZrL14es1vtRXN
  */
 function syncToGoogleSheets(expense) {
     const payload = {
+        action: 'add',
         date: expense.date,
         amount: expense.amount,
         reason: expense.reason,
         category: expense.category,
-        account: expense.account
+        account: expense.account,
+        id: expense.id
     };
 
     fetch(SHEETS_URL, {
@@ -27,8 +29,27 @@ function syncToGoogleSheets(expense) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     }).catch(err => {
-        // If offline, queue for later
         console.log('Sync failed, queuing:', err);
+        queueForSync(payload);
+    });
+}
+
+/**
+ * Mark an expense as deleted in Google Sheets.
+ */
+function syncDeleteToGoogleSheets(expenseId) {
+    const payload = {
+        action: 'delete',
+        id: expenseId
+    };
+
+    fetch(SHEETS_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).catch(err => {
+        console.log('Delete sync failed, queuing:', err);
         queueForSync(payload);
     });
 }
@@ -275,6 +296,9 @@ function addExpense(amount, reason, category, account) {
 function deleteExpense(id) {
     const expenses = getExpenses();
     saveExpenses(expenses.filter(exp => exp.id !== id));
+
+    // Mark as deleted in Google Sheets
+    syncDeleteToGoogleSheets(id);
 }
 
 function getCurrentMonthExpenses() {
