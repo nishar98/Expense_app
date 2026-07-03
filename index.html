@@ -18,6 +18,51 @@
     <link rel="apple-touch-icon" href="icons/icon-192.svg">
 </head>
 <body>
+    <!-- ==================== ONBOARDING OVERLAY ==================== -->
+    <div id="onboarding" class="onboarding hidden">
+        <div class="onboarding-screen active" id="onboard-1">
+            <div class="onboard-content">
+                <div class="onboard-icon">₹</div>
+                <h2>Welcome to Expense Manager</h2>
+                <p>Track expenses in under 5 seconds. Let's set up your profile.</p>
+                <button class="onboard-next" onclick="nextOnboardStep(2)">Get Started</button>
+            </div>
+        </div>
+
+        <div class="onboarding-screen" id="onboard-2">
+            <div class="onboard-content">
+                <h2>Your Income</h2>
+                <p>What's your monthly income after tax?</p>
+                <div class="form-group">
+                    <input type="number" id="onboard-income" inputmode="decimal" placeholder="e.g. 114000">
+                </div>
+                <button class="onboard-next" onclick="nextOnboardStep(3)">Next</button>
+            </div>
+        </div>
+
+        <div class="onboarding-screen" id="onboard-3">
+            <div class="onboard-content">
+                <h2>Your Accounts</h2>
+                <p>Which accounts do you use? (You can change this later)</p>
+                <div class="onboard-checks" id="onboard-accounts">
+                    <label class="onboard-check"><input type="checkbox" value="SBI Savings" checked> SBI Savings</label>
+                    <label class="onboard-check"><input type="checkbox" value="ICICI Salary Account" checked> ICICI Salary Account</label>
+                    <label class="onboard-check"><input type="checkbox" value="HDFC Millennia" checked> HDFC Millennia</label>
+                    <label class="onboard-check"><input type="checkbox" value="HDFC Swiggy" checked> HDFC Swiggy</label>
+                    <label class="onboard-check"><input type="checkbox" value="ICICI Rubyx" checked> ICICI Rubyx</label>
+                    <label class="onboard-check"><input type="checkbox" value="Scapia" checked> Scapia</label>
+                </div>
+                <button class="onboard-next" onclick="completeOnboarding()">Start Tracking</button>
+            </div>
+        </div>
+
+        <div class="onboard-steps">
+            <span class="onboard-dot active"></span>
+            <span class="onboard-dot"></span>
+            <span class="onboard-dot"></span>
+        </div>
+    </div>
+
     <div id="app">
 
         <!-- ==================== ENTRY PAGE ==================== -->
@@ -42,6 +87,11 @@
                 <span id="daily-insight-text"></span>
             </div>
 
+            <!-- Spending Velocity -->
+            <div class="velocity-insight hidden" id="velocity-insight">
+                <span id="velocity-text"></span>
+            </div>
+
             <!-- Money Saved Nudge -->
             <div class="savings-nudge hidden" id="savings-nudge">
                 <span class="nudge-icon">💰</span>
@@ -58,7 +108,6 @@
                         placeholder="0" 
                         inputmode="decimal"
                         required
-                        autofocus
                         aria-label="Expense amount in rupees"
                     >
                 </div>
@@ -107,14 +156,50 @@
                         <button type="button" class="chip" data-value="ICICI Salary Account">ICICI</button>
                         <button type="button" class="chip" data-value="HDFC Millennia">Millennia</button>
                         <button type="button" class="chip" data-value="HDFC Swiggy">Swiggy</button>
-                        <button type="button" class="chip" data-value="ICICI Coral">Coral</button>
+                        <button type="button" class="chip" data-value="ICICI Rubyx">Rubyx</button>
                         <button type="button" class="chip" data-value="Scapia">Scapia</button>
                     </div>
                 </div>
 
-                <!-- Save Button -->
-                <button type="submit" id="save-btn">Save Expense</button>
+                <!-- Tags (optional) -->
+                <div class="tags-section">
+                    <input type="text" id="tags-input" placeholder="Tags: #trip #dinner (optional)" aria-label="Tags">
+                </div>
+
+                <!-- Action Row: Save + Split -->
+                <div class="action-row">
+                    <button type="submit" id="save-btn">Save Expense</button>
+                    <button type="button" id="split-btn" class="split-btn" title="Split expense">÷</button>
+                </div>
             </form>
+
+            <!-- Split Calculator Modal -->
+            <div id="split-modal" class="modal hidden">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Split Expense</h3>
+                        <button id="close-split-modal" class="modal-close">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="split-amount">Total Amount (₹)</label>
+                            <input type="number" id="split-amount" inputmode="decimal" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="split-people">Number of People (including you)</label>
+                            <input type="number" id="split-people" inputmode="numeric" value="2" min="2">
+                        </div>
+                        <div class="split-result hidden" id="split-result">
+                            <span class="split-result-label">Your share</span>
+                            <span class="split-result-amount" id="split-your-share">₹0</span>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="split-calculate" class="small-btn">Calculate</button>
+                        <button id="split-use" class="save-modal-btn">Use Amount</button>
+                    </div>
+                </div>
+            </div>
 
             <!-- Today's Transactions List -->
             <div class="today-transactions" id="today-transactions">
@@ -125,9 +210,13 @@
                 <div id="today-tx-list" class="today-tx-list"></div>
             </div>
 
-            <!-- Success Message -->
+            <!-- Success / Undo Toast -->
             <div id="success-message" class="hidden">
                 <span>✓ Saved</span>
+            </div>
+            <div id="undo-toast" class="undo-toast hidden">
+                <span>Expense deleted</span>
+                <button id="undo-btn" class="undo-link">Undo</button>
             </div>
         </main>
 
@@ -138,6 +227,11 @@
                 <div class="history-total">
                     <span id="history-total-amount">₹0</span>
                 </div>
+            </div>
+
+            <!-- Month-over-Month Comparison -->
+            <div class="mom-comparison hidden" id="mom-comparison">
+                <span id="mom-text"></span>
             </div>
 
             <!-- Pie Chart -->
@@ -167,6 +261,9 @@
                     <span class="insight-value" id="insight-count">0</span>
                 </div>
             </div>
+
+            <!-- Category Trends -->
+            <div id="category-trends" class="category-trends hidden"></div>
 
             <div id="history-list" class="history-list">
                 <p class="empty-state">No expenses yet this month.</p>
@@ -274,7 +371,10 @@
             <div class="summary-section">
                 <div class="section-header">
                     <h3>My Finances</h3>
-                    <button id="edit-finances-btn" class="small-btn">Edit</button>
+                    <div class="section-header-right">
+                        <button id="log-income-btn" class="small-btn">+ Income</button>
+                        <button id="edit-finances-btn" class="small-btn">Edit</button>
+                    </div>
                 </div>
                 <div class="finance-items">
                     <div class="finance-row">
@@ -359,6 +459,63 @@
             </div>
         </main>
 
+        <!-- ==================== ANALYTICS PAGE ==================== -->
+        <main id="page-analytics" class="page">
+            <div class="page-header">
+                <h2>Analytics</h2>
+            </div>
+
+            <!-- Financial Health Score -->
+            <div class="health-score-card">
+                <div class="health-score-ring">
+                    <svg viewBox="0 0 120 120" class="score-ring-svg">
+                        <circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg-3)" stroke-width="8"/>
+                        <circle cx="60" cy="60" r="52" fill="none" stroke="var(--accent)" stroke-width="8"
+                            stroke-dasharray="327" stroke-dashoffset="327" stroke-linecap="round"
+                            id="health-ring" class="health-ring"/>
+                    </svg>
+                    <span class="health-score-number" id="health-score">0</span>
+                </div>
+                <div class="health-score-info">
+                    <span class="health-score-label">Financial Health</span>
+                    <span class="health-score-rating" id="health-rating">-</span>
+                </div>
+            </div>
+
+            <!-- Score Breakdown -->
+            <div class="score-breakdown" id="score-breakdown"></div>
+
+            <!-- Account-wise Spending -->
+            <div class="summary-section">
+                <div class="section-header">
+                    <h3>Spending by Account</h3>
+                </div>
+                <div id="account-spending-list" class="account-spending-list"></div>
+            </div>
+
+            <!-- Monthly Report -->
+            <div class="summary-section">
+                <div class="section-header">
+                    <h3>Monthly Report</h3>
+                </div>
+                <div class="monthly-report" id="monthly-report"></div>
+            </div>
+
+            <!-- Subscription Summary -->
+            <div class="summary-section">
+                <div class="section-header">
+                    <h3>Subscriptions</h3>
+                </div>
+                <div id="subscription-list" class="subscription-list"></div>
+            </div>
+
+            <!-- Link to Export & Settings -->
+            <div class="analytics-links">
+                <button class="export-link-btn" onclick="showPage('export')">Export & Backup Data →</button>
+                <button class="export-link-btn" onclick="showPage('settings')">Settings →</button>
+            </div>
+        </main>
+
         <!-- ==================== EXPORT PAGE ==================== -->
         <main id="page-export" class="page">
             <div class="page-header">
@@ -399,6 +556,116 @@
             </div>
         </main>
 
+        <!-- ==================== SETTINGS PAGE ==================== -->
+        <main id="page-settings" class="page">
+            <div class="page-header">
+                <h2>Settings</h2>
+            </div>
+
+            <!-- Custom Categories -->
+            <div class="summary-section">
+                <div class="section-header">
+                    <h3>Categories</h3>
+                    <button id="add-category-btn" class="small-btn">+ Add</button>
+                </div>
+                <div id="custom-categories-list" class="settings-list"></div>
+            </div>
+
+            <!-- Custom Accounts -->
+            <div class="summary-section">
+                <div class="section-header">
+                    <h3>Accounts</h3>
+                    <button id="add-account-btn" class="small-btn">+ Add</button>
+                </div>
+                <div id="custom-accounts-list" class="settings-list"></div>
+            </div>
+
+            <!-- Data Management -->
+            <div class="summary-section">
+                <div class="section-header">
+                    <h3>Data</h3>
+                </div>
+                <div class="settings-list">
+                    <button class="settings-item" onclick="showPage('export')">Export & Backup →</button>
+                    <button class="settings-item settings-danger" id="reset-onboarding-btn">Reset Onboarding</button>
+                    <button class="settings-item settings-danger" id="clear-all-data-btn">Clear All Data</button>
+                </div>
+            </div>
+
+            <!-- Add Category Modal -->
+            <div id="add-cat-modal" class="modal hidden">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Add Category</h3>
+                        <button id="close-cat-modal" class="modal-close">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="new-cat-name">Category Name</label>
+                            <input type="text" id="new-cat-name" placeholder="e.g. Pets, Education">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="save-new-cat" class="save-modal-btn">Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Account Modal -->
+            <div id="add-acc-modal" class="modal hidden">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Add Account</h3>
+                        <button id="close-acc-modal" class="modal-close">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="new-acc-name">Account Name</label>
+                            <input type="text" id="new-acc-name" placeholder="e.g. Axis Bank, Cash">
+                        </div>
+                        <div class="form-group">
+                            <label for="new-acc-short">Short Label (for chip)</label>
+                            <input type="text" id="new-acc-short" placeholder="e.g. Axis, Cash">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="save-new-acc" class="save-modal-btn">Add</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Income Entry Modal (global, not inside any page) -->
+        <div id="income-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Log Income</h3>
+                    <button id="close-income-modal" class="modal-close">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="income-amount">Amount (₹)</label>
+                        <input type="number" id="income-amount" inputmode="decimal" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="income-source">Source</label>
+                        <input type="text" id="income-source" placeholder="Salary, Freelance, Bonus...">
+                    </div>
+                    <div class="form-group">
+                        <label for="income-account">Credited To</label>
+                        <select id="income-account">
+                            <option value="">Select Account</option>
+                            <option value="SBI Savings">SBI Savings</option>
+                            <option value="ICICI Salary Account">ICICI Salary Account</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="save-income-btn" class="save-modal-btn">Save Income</button>
+                </div>
+            </div>
+        </div>
+
         <!-- ==================== BOTTOM NAVIGATION ==================== -->
         <nav id="bottom-nav" class="bottom-nav">
             <button id="nav-history" class="nav-item">
@@ -419,9 +686,9 @@
                 <svg viewBox="0 0 24 24" class="nav-icon"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
                 <span>Summary</span>
             </button>
-            <button id="nav-export" class="nav-item">
-                <svg viewBox="0 0 24 24" class="nav-icon"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                <span>Export</span>
+            <button id="nav-analytics" class="nav-item">
+                <svg viewBox="0 0 24 24" class="nav-icon"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                <span>Analytics</span>
             </button>
         </nav>
     </div>
