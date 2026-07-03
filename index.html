@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f0f1a">
+    <meta name="description" content="Personal Expense Management App">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Expenses">
+    <title>Expense Manager</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.svg">
+</head>
+<body>
+    <div id="app">
+
+        <!-- ==================== ENTRY PAGE ==================== -->
+        <main id="page-entry" class="page active">
+            <!-- Streak + Quick Stats Bar -->
+            <div class="entry-header">
+                <div class="today-stat">
+                    <span class="today-label">Today</span>
+                    <span class="today-amount" id="today-total">₹0</span>
+                </div>
+                <div class="streak-stat">
+                    <span class="streak-badge" id="streak-badge">🔥 0 days</span>
+                </div>
+                <div class="month-stat">
+                    <span class="month-label" id="entry-month-label">This Month</span>
+                    <span class="month-amount" id="entry-month-total">₹0</span>
+                </div>
+            </div>
+
+            <!-- Daily Average Comparison -->
+            <div class="daily-insight" id="daily-insight">
+                <span id="daily-insight-text"></span>
+            </div>
+
+            <!-- Money Saved Nudge -->
+            <div class="savings-nudge hidden" id="savings-nudge">
+                <span class="nudge-icon">💰</span>
+                <span class="nudge-text" id="savings-nudge-text">You've saved ₹0 this month</span>
+            </div>
+
+            <form id="expense-form">
+                <!-- Amount: Big, centered, payment-app style -->
+                <div class="amount-section">
+                    <span class="currency-symbol">₹</span>
+                    <input 
+                        type="number" 
+                        id="amount" 
+                        placeholder="0" 
+                        inputmode="decimal"
+                        required
+                        autofocus
+                        aria-label="Expense amount in rupees"
+                    >
+                </div>
+
+                <!-- Budget Warning (shows when approaching limit) -->
+                <div class="budget-warning hidden" id="budget-warning">
+                    <span id="budget-warning-text"></span>
+                </div>
+
+                <!-- Reason -->
+                <div class="reason-section">
+                    <input 
+                        type="text" 
+                        id="reason" 
+                        placeholder="What was this for?"
+                        aria-label="Reason for expense"
+                    >
+                </div>
+
+                <!-- Category: Chip/Pill Buttons -->
+                <div class="chips-section">
+                    <span class="chips-label">Category</span>
+                    <div class="chips-container" id="category-chips">
+                        <button type="button" class="chip" data-value="Food">🍕 Food</button>
+                        <button type="button" class="chip" data-value="Grocery">🛒 Grocery</button>
+                        <button type="button" class="chip" data-value="Fuel">⛽ Fuel</button>
+                        <button type="button" class="chip" data-value="Shopping">🛍️ Shopping</button>
+                        <button type="button" class="chip" data-value="Travel">✈️ Travel</button>
+                        <button type="button" class="chip" data-value="Entertainment">🎬 Entertainment</button>
+                        <button type="button" class="chip" data-value="Bills">📄 Bills</button>
+                        <button type="button" class="chip" data-value="Medical">💊 Medical</button>
+                        <button type="button" class="chip" data-value="Subscription">📺 Subscription</button>
+                        <button type="button" class="chip" data-value="Family">👨‍👩‍👦 Family</button>
+                        <button type="button" class="chip" data-value="Electronics">💻 Electronics</button>
+                        <button type="button" class="chip" data-value="Gym">🏋️ Gym</button>
+                        <button type="button" class="chip" data-value="Investment">📈 Investment</button>
+                        <button type="button" class="chip" data-value="Others">📦 Others</button>
+                    </div>
+                </div>
+
+                <!-- Account: Chip Buttons -->
+                <div class="chips-section">
+                    <span class="chips-label">Account</span>
+                    <div class="chips-container" id="account-chips">
+                        <button type="button" class="chip" data-value="SBI Savings">SBI</button>
+                        <button type="button" class="chip" data-value="ICICI Salary Account">ICICI</button>
+                        <button type="button" class="chip" data-value="HDFC Millennia">Millennia</button>
+                        <button type="button" class="chip" data-value="HDFC Swiggy">Swiggy</button>
+                        <button type="button" class="chip" data-value="ICICI Coral">Coral</button>
+                        <button type="button" class="chip" data-value="Scapia">Scapia</button>
+                    </div>
+                </div>
+
+                <!-- Save Button -->
+                <button type="submit" id="save-btn">Save Expense</button>
+            </form>
+
+            <!-- Today's Transactions List -->
+            <div class="today-transactions" id="today-transactions">
+                <div class="today-tx-header">
+                    <span>Today's Entries</span>
+                    <span id="today-tx-count">0</span>
+                </div>
+                <div id="today-tx-list" class="today-tx-list"></div>
+            </div>
+
+            <!-- Success Message -->
+            <div id="success-message" class="hidden">
+                <span>✓ Saved</span>
+            </div>
+        </main>
+
+        <!-- ==================== HISTORY PAGE ==================== -->
+        <main id="page-history" class="page">
+            <div class="page-header">
+                <h2 id="history-month-title">This Month</h2>
+                <div class="history-total">
+                    <span id="history-total-amount">₹0</span>
+                </div>
+            </div>
+
+            <!-- Pie Chart -->
+            <div id="chart-container" class="chart-container hidden">
+                <div class="chart-wrapper">
+                    <svg id="pie-chart" viewBox="0 0 200 200" class="pie-chart"></svg>
+                </div>
+                <div id="chart-legend" class="chart-legend"></div>
+            </div>
+
+            <!-- Spending Insights -->
+            <div id="insights-card" class="insights-card hidden">
+                <div class="insight-item">
+                    <span class="insight-label">Daily Average</span>
+                    <span class="insight-value" id="insight-daily-avg">₹0</span>
+                </div>
+                <div class="insight-item">
+                    <span class="insight-label">Highest Expense</span>
+                    <span class="insight-value" id="insight-highest">₹0</span>
+                </div>
+                <div class="insight-item">
+                    <span class="insight-label">Top Category</span>
+                    <span class="insight-value" id="insight-top-cat">-</span>
+                </div>
+                <div class="insight-item">
+                    <span class="insight-label">Entries</span>
+                    <span class="insight-value" id="insight-count">0</span>
+                </div>
+            </div>
+
+            <div id="history-list" class="history-list">
+                <p class="empty-state">No expenses yet this month.</p>
+            </div>
+        </main>
+
+        <!-- ==================== BUDGET PAGE ==================== -->
+        <main id="page-budget" class="page">
+            <div class="page-header">
+                <h2>Budget</h2>
+                <button id="edit-budget-btn" class="small-btn">Edit</button>
+            </div>
+
+            <!-- Budget Overview -->
+            <div class="budget-overview">
+                <div class="metric-card">
+                    <span class="metric-label">Budget</span>
+                    <span class="metric-value" id="budget-total">₹0</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Spent</span>
+                    <span class="metric-value spent" id="budget-spent">₹0</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Left</span>
+                    <span class="metric-value remaining" id="budget-remaining">₹0</span>
+                </div>
+            </div>
+
+            <!-- Overall Progress -->
+            <div class="progress-section">
+                <div class="progress-bar-wrapper">
+                    <div class="progress-bar" id="budget-progress-bar"></div>
+                </div>
+                <span class="progress-text" id="budget-progress-text">0% used</span>
+            </div>
+
+            <!-- Category Budgets -->
+            <div id="budget-list" class="budget-list"></div>
+
+            <!-- Budget Modal -->
+            <div id="budget-modal" class="modal hidden">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Set Monthly Budgets</h3>
+                        <button id="close-budget-modal" class="modal-close">×</button>
+                    </div>
+                    <div id="budget-form-fields" class="modal-body"></div>
+                    <div class="modal-footer">
+                        <button id="save-budget-btn" class="save-modal-btn">Save</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- ==================== SUMMARY PAGE ==================== -->
+        <main id="page-summary" class="page">
+            <!-- Hero: Net Worth -->
+            <div class="summary-hero">
+                <span class="summary-hero-label">Net Worth</span>
+                <span class="summary-hero-value" id="summary-networth">₹0</span>
+            </div>
+
+            <!-- Narrative Stats -->
+            <div class="narrative-section">
+                <div class="narrative-row">
+                    <span class="narrative-label">Earned this month</span>
+                    <span class="narrative-value" id="summary-income">₹0</span>
+                </div>
+                <div class="narrative-row">
+                    <span class="narrative-label">Spent this month</span>
+                    <span class="narrative-value spent" id="summary-spent">₹0</span>
+                </div>
+                <div class="narrative-row">
+                    <span class="narrative-label">Saved this month</span>
+                    <span class="narrative-value saved" id="summary-saved">₹0</span>
+                </div>
+                <div class="narrative-row highlight">
+                    <span class="narrative-label">Savings Rate</span>
+                    <span class="narrative-value accent" id="summary-savings-rate">0%</span>
+                </div>
+            </div>
+
+            <!-- Fixed Expenses -->
+            <div class="summary-section">
+                <div class="section-header">
+                    <h3>Fixed Expenses</h3>
+                    <button id="edit-fixed-btn" class="small-btn">Edit</button>
+                </div>
+                <div class="fixed-total-row">
+                    <span>Monthly Total</span>
+                    <span id="fixed-total-display">₹0</span>
+                </div>
+                <div id="fixed-expenses-list" class="fixed-expenses-list"></div>
+            </div>
+
+            <!-- Finances -->
+            <div class="summary-section">
+                <div class="section-header">
+                    <h3>My Finances</h3>
+                    <button id="edit-finances-btn" class="small-btn">Edit</button>
+                </div>
+                <div class="finance-items">
+                    <div class="finance-row">
+                        <span>Monthly Income</span>
+                        <span id="fin-income">₹1,14,000</span>
+                    </div>
+                    <div class="finance-row">
+                        <span>Bank Balance</span>
+                        <span id="fin-bank">₹1,13,000</span>
+                    </div>
+                    <div class="finance-row">
+                        <span>Investments</span>
+                        <span id="fin-investments">₹1,84,034</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Goals -->
+            <div class="summary-section">
+                <div class="section-header">
+                    <h3>Goals</h3>
+                    <button id="edit-goals-btn" class="small-btn">Edit</button>
+                </div>
+                <div id="goals-list" class="goals-list"></div>
+            </div>
+
+            <!-- Finances Modal -->
+            <div id="finances-modal" class="modal hidden">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Update Finances</h3>
+                        <button id="close-finances-modal" class="modal-close">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="fin-income-input">Monthly Income (₹)</label>
+                            <input type="number" id="fin-income-input" inputmode="decimal">
+                        </div>
+                        <div class="form-group">
+                            <label for="fin-bank-input">Total Bank Balance (₹)</label>
+                            <input type="number" id="fin-bank-input" inputmode="decimal">
+                        </div>
+                        <div class="form-group">
+                            <label for="fin-investments-input">Total Investments (₹)</label>
+                            <input type="number" id="fin-investments-input" inputmode="decimal">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="save-finances-btn" class="save-modal-btn">Save</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fixed Expenses Modal -->
+            <div id="fixed-modal" class="modal hidden">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Fixed Expenses</h3>
+                        <button id="close-fixed-modal" class="modal-close">×</button>
+                    </div>
+                    <div id="fixed-form-fields" class="modal-body"></div>
+                    <div class="modal-footer">
+                        <button id="add-fixed-btn" class="small-btn">+ Add Item</button>
+                        <button id="save-fixed-btn" class="save-modal-btn">Save</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Goals Modal -->
+            <div id="goals-modal" class="modal hidden">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Edit Goals</h3>
+                        <button id="close-goals-modal" class="modal-close">×</button>
+                    </div>
+                    <div id="goals-form-fields" class="modal-body"></div>
+                    <div class="modal-footer">
+                        <button id="add-goal-btn" class="small-btn">+ Add Goal</button>
+                        <button id="save-goals-btn" class="save-modal-btn">Save</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- ==================== EXPORT PAGE ==================== -->
+        <main id="page-export" class="page">
+            <div class="page-header">
+                <h2>Export</h2>
+            </div>
+
+            <!-- Monthly Export -->
+            <p class="export-info">Export current month's expenses.</p>
+            <div class="export-buttons">
+                <button id="export-csv" class="export-btn">
+                    <span class="export-btn-icon">📊</span>
+                    <span class="export-btn-text">Export as CSV</span>
+                    <span class="export-btn-sub">For Excel Dashboard</span>
+                </button>
+                <button id="export-md" class="export-btn">
+                    <span class="export-btn-icon">📝</span>
+                    <span class="export-btn-text">Export as Markdown</span>
+                    <span class="export-btn-sub">For ChatGPT Analysis</span>
+                </button>
+            </div>
+
+            <!-- Full Backup Section -->
+            <div class="export-section-divider"></div>
+            <p class="export-info">Backup & restore all your data (expenses, budgets, goals, finances).</p>
+            <div class="export-buttons">
+                <button id="backup-all" class="export-btn backup-btn">
+                    <span class="export-btn-icon">💾</span>
+                    <span class="export-btn-text">Backup All Data</span>
+                    <span class="export-btn-sub">Download a safety copy</span>
+                </button>
+                <button id="restore-all" class="export-btn restore-btn">
+                    <span class="export-btn-icon">📂</span>
+                    <span class="export-btn-text">Restore Data</span>
+                    <span class="export-btn-sub">Upload a backup file</span>
+                </button>
+                <input type="file" id="restore-file-input" accept=".json" class="hidden">
+            </div>
+
+            <div id="export-preview" class="hidden">
+                <h3>Preview</h3>
+                <pre id="export-preview-content"></pre>
+            </div>
+        </main>
+
+        <!-- ==================== BOTTOM NAVIGATION ==================== -->
+        <nav id="bottom-nav" class="bottom-nav">
+            <button id="nav-history" class="nav-item">
+                <svg viewBox="0 0 24 24" class="nav-icon"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+                <span>History</span>
+            </button>
+            <button id="nav-budget" class="nav-item">
+                <svg viewBox="0 0 24 24" class="nav-icon"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+                <span>Budget</span>
+            </button>
+            <button id="nav-entry" class="nav-item nav-center active">
+                <div class="nav-center-btn">
+                    <svg viewBox="0 0 24 24" class="nav-icon-center"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                </div>
+                <span>Add</span>
+            </button>
+            <button id="nav-summary" class="nav-item">
+                <svg viewBox="0 0 24 24" class="nav-icon"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
+                <span>Summary</span>
+            </button>
+            <button id="nav-export" class="nav-item">
+                <svg viewBox="0 0 24 24" class="nav-icon"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                <span>Export</span>
+            </button>
+        </nav>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
