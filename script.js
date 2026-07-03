@@ -845,11 +845,12 @@ function renderBudget() {
             const budget = budgets[cat];
             const spent = spending[cat] || 0;
             const percent = Math.min((spent / budget) * 100, 100);
+            const actualPercent = (spent / budget) * 100;
             const isOver = spent > budget;
-            const barColor = isOver ? 'var(--danger)' : percent > 80 ? 'var(--warning)' : 'var(--accent)';
-            const status = isOver ? `Over by ${formatINR(spent - budget)}` : `${formatINR(budget - spent)} left`;
+            const barColor = isOver ? 'var(--negative)' : percent > 80 ? 'var(--warning)' : 'var(--accent)';
+            const status = isOver ? `₹${(spent - budget).toLocaleString('en-IN')} over` : `₹${(budget - spent).toLocaleString('en-IN')} left`;
 
-            return `<div class="budget-item">
+            return { html: `<div class="budget-item">
                 <div class="budget-item-header">
                     <span class="budget-item-name">${cat}</span>
                     <span class="budget-item-amounts">${formatINR(spent)} / ${formatINR(budget)}</span>
@@ -857,9 +858,11 @@ function renderBudget() {
                 <div class="budget-item-bar">
                     <div class="budget-item-bar-fill" style="width:${percent}%;background:${barColor}"></div>
                 </div>
-                <div class="budget-item-status" style="color:${isOver ? 'var(--danger)' : 'var(--text-muted)'}">${status}</div>
-            </div>`;
-        });
+                <div class="budget-item-status" style="color:${isOver ? 'var(--negative)' : 'var(--text-tertiary)'}">${status}</div>
+            </div>`, sortKey: actualPercent };
+        })
+        .sort((a, b) => b.sortKey - a.sortKey)
+        .map(item => item.html);
 
     budgetList.innerHTML = items.length === 0
         ? '<p class="empty-state">No budgets set. Tap "Edit" to set category limits.</p>'
@@ -1027,6 +1030,14 @@ function renderFixedExpenses() {
 
     list.innerHTML = html;
 }
+
+// Fixed Expenses Accordion Toggle
+document.getElementById('toggle-fixed').addEventListener('click', () => {
+    const content = document.getElementById('fixed-content');
+    const icon = document.querySelector('.accordion-icon');
+    content.classList.toggle('hidden');
+    icon.classList.toggle('open');
+});
 
 // Fixed Expenses Modal
 document.getElementById('edit-fixed-btn').addEventListener('click', () => {
