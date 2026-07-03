@@ -2,13 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0f0f1a">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0A0A0F">
     <meta name="description" content="Personal Expense Management App">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Expenses">
     <title>Expense Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icons/icon-192.svg">
@@ -78,20 +82,20 @@
                 <div class="chips-section">
                     <span class="chips-label">Category</span>
                     <div class="chips-container" id="category-chips">
-                        <button type="button" class="chip" data-value="Food">🍕 Food</button>
-                        <button type="button" class="chip" data-value="Grocery">🛒 Grocery</button>
-                        <button type="button" class="chip" data-value="Fuel">⛽ Fuel</button>
-                        <button type="button" class="chip" data-value="Shopping">🛍️ Shopping</button>
-                        <button type="button" class="chip" data-value="Travel">✈️ Travel</button>
-                        <button type="button" class="chip" data-value="Entertainment">🎬 Entertainment</button>
-                        <button type="button" class="chip" data-value="Bills">📄 Bills</button>
-                        <button type="button" class="chip" data-value="Medical">💊 Medical</button>
-                        <button type="button" class="chip" data-value="Subscription">📺 Subscription</button>
-                        <button type="button" class="chip" data-value="Family">👨‍👩‍👦 Family</button>
-                        <button type="button" class="chip" data-value="Electronics">💻 Electronics</button>
-                        <button type="button" class="chip" data-value="Gym">🏋️ Gym</button>
-                        <button type="button" class="chip" data-value="Investment">📈 Investment</button>
-                        <button type="button" class="chip" data-value="Others">📦 Others</button>
+                        <button type="button" class="chip" data-value="Food">Food</button>
+                        <button type="button" class="chip" data-value="Grocery">Grocery</button>
+                        <button type="button" class="chip" data-value="Fuel">Fuel</button>
+                        <button type="button" class="chip" data-value="Shopping">Shopping</button>
+                        <button type="button" class="chip" data-value="Travel">Travel</button>
+                        <button type="button" class="chip" data-value="Entertainment">Entertainment</button>
+                        <button type="button" class="chip" data-value="Bills">Bills</button>
+                        <button type="button" class="chip" data-value="Medical">Medical</button>
+                        <button type="button" class="chip" data-value="Subscription">Subscription</button>
+                        <button type="button" class="chip" data-value="Family">Family</button>
+                        <button type="button" class="chip" data-value="Electronics">Electronics</button>
+                        <button type="button" class="chip" data-value="Gym">Gym</button>
+                        <button type="button" class="chip" data-value="Investment">Investment</button>
+                        <button type="button" class="chip" data-value="Others">Others</button>
                     </div>
                 </div>
 
@@ -358,12 +362,10 @@
             <p class="export-info">Export current month's expenses.</p>
             <div class="export-buttons">
                 <button id="export-csv" class="export-btn">
-                    <span class="export-btn-icon">📊</span>
                     <span class="export-btn-text">Export as CSV</span>
                     <span class="export-btn-sub">For Excel Dashboard</span>
                 </button>
                 <button id="export-md" class="export-btn">
-                    <span class="export-btn-icon">📝</span>
                     <span class="export-btn-text">Export as Markdown</span>
                     <span class="export-btn-sub">For ChatGPT Analysis</span>
                 </button>
@@ -374,12 +376,10 @@
             <p class="export-info">Backup & restore all your data (expenses, budgets, goals, finances).</p>
             <div class="export-buttons">
                 <button id="backup-all" class="export-btn backup-btn">
-                    <span class="export-btn-icon">💾</span>
                     <span class="export-btn-text">Backup All Data</span>
                     <span class="export-btn-sub">Download a safety copy</span>
                 </button>
                 <button id="restore-all" class="export-btn restore-btn">
-                    <span class="export-btn-icon">📂</span>
                     <span class="export-btn-text">Restore Data</span>
                     <span class="export-btn-sub">Upload a backup file</span>
                 </button>
