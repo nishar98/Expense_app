@@ -3,6 +3,77 @@
    Behavioral nudges, streaks, animations, insights
    ============================================================ */
 
+// ==================== GOOGLE SHEETS SYNC ====================
+
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxQKG6GZrL14es1vtRXN6A-h60JjkgN2WIQlbO7mLsX92SdczGTemnKtU911ij7jBd2Fg/exec';
+
+/**
+ * Send expense data to Google Sheets in the background.
+ * Does not block the UI — fires and forgets.
+ * If offline, queues the data for later sync.
+ */
+function syncToGoogleSheets(expense) {
+    const payload = {
+        date: expense.date,
+        amount: expense.amount,
+        reason: expense.reason,
+        category: expense.category,
+        account: expense.account
+    };
+
+    fetch(SHEETS_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).catch(err => {
+        // If offline, queue for later
+        console.log('Sync failed, queuing:', err);
+        queueForSync(payload);
+    });
+}
+
+/**
+ * Queue failed syncs to retry later when online.
+ */
+function queueForSync(payload) {
+    const queue = JSON.parse(localStorage.getItem('sync_queue') || '[]');
+    queue.push(payload);
+    localStorage.setItem('sync_queue', JSON.stringify(queue));
+}
+
+/**
+ * Retry any queued syncs (called when app loads and is online).
+ */
+function retrySyncQueue() {
+    const queue = JSON.parse(localStorage.getItem('sync_queue') || '[]');
+    if (queue.length === 0) return;
+
+    // Try to sync each queued item
+    const remaining = [];
+    queue.forEach(payload => {
+        fetch(SHEETS_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).catch(() => {
+            remaining.push(payload);
+        });
+    });
+
+    // Keep only failed ones
+    setTimeout(() => {
+        localStorage.setItem('sync_queue', JSON.stringify(remaining));
+    }, 3000);
+}
+
+// Retry queued syncs when app loads and is online
+if (navigator.onLine) {
+    retrySyncQueue();
+}
+window.addEventListener('online', retrySyncQueue);
+
 // ==================== STORAGE ====================
 
 const STORAGE_KEY = 'expenses';
@@ -194,6 +265,10 @@ function addExpense(amount, reason, category, account) {
     };
     expenses.push(expense);
     saveExpenses(expenses);
+
+    // Sync to Google Sheets (background, non-blocking)
+    syncToGoogleSheets(expense);
+
     return expense;
 }
 
