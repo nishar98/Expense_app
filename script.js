@@ -102,6 +102,13 @@ const FINANCES_KEY = 'finances';
 const GOALS_KEY = 'goals';
 const STREAK_KEY = 'streak_data';
 const FIXED_KEY = 'fixed_expenses';
+const INCOME_KEY = 'income_log';
+const GOAL_CELEBRATIONS_KEY = 'goal_celebrations';
+const NETWORTH_KEY = 'networth_snapshots';
+const THEME_KEY = 'theme';
+const ONBOARDING_KEY = 'onboarding_complete';
+const CUSTOM_CATEGORIES_KEY = 'custom_categories';
+const CUSTOM_ACCOUNTS_KEY = 'custom_accounts';
 
 const CATEGORIES = [
     'Food', 'Grocery', 'Electronics', 'Gym', 'Fuel',
@@ -449,8 +456,6 @@ function getEffectiveIncome() {
 
 // ==================== GOAL CELEBRATIONS (Bug Fix 2.3) ====================
 
-const GOAL_CELEBRATIONS_KEY = 'goal_celebrations';
-
 function getGoalCelebrations() {
     const data = localStorage.getItem(GOAL_CELEBRATIONS_KEY);
     return data ? JSON.parse(data) : {};
@@ -510,8 +515,6 @@ function spawnCelebration(goalIndex) {
 }
 
 // ==================== NET WORTH SNAPSHOTS (Feature 3.5) ====================
-
-const NETWORTH_KEY = 'networth_snapshots';
 
 function getNetworthSnapshots() {
     const data = localStorage.getItem(NETWORTH_KEY);
@@ -1730,8 +1733,8 @@ function renderFixedForm(items) {
             <input type="number" class="fixed-amount-input" value="${item.amount}" placeholder="₹" inputmode="decimal">
             <button type="button" class="fixed-delete-btn" onclick="removeFixedRow(${i})">×</button>
         </div>
-        <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);">
-            <select class="fixed-category-input" style="width:100%;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text-primary);font-size:0.8rem;font-family:var(--font);">
+        <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border-subtle);">
+            <select class="fixed-category-input" style="width:100%;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:var(--font);">
                 <option value="Bills" ${item.category === 'Bills' ? 'selected' : ''}>Expense</option>
                 <option value="Investment" ${item.category === 'Investment' ? 'selected' : ''}>Investment</option>
                 <option value="Family" ${item.category === 'Family' ? 'selected' : ''}>Family</option>
@@ -2026,8 +2029,6 @@ document.getElementById('split-use').addEventListener('click', () => {
 
 // ==================== INCOME ENTRY ====================
 
-const INCOME_KEY = 'income_log';
-
 function getIncomeLog() {
     const data = localStorage.getItem(INCOME_KEY);
     return data ? JSON.parse(data) : [];
@@ -2169,10 +2170,6 @@ document.getElementById('restore-file-input').addEventListener('change', (e) => 
 });
 
 // ==================== ONBOARDING ====================
-
-const ONBOARDING_KEY = 'onboarding_complete';
-const CUSTOM_CATEGORIES_KEY = 'custom_categories';
-const CUSTOM_ACCOUNTS_KEY = 'custom_accounts';
 
 function isOnboardingDone() {
     return localStorage.getItem(ONBOARDING_KEY) === 'true';
@@ -2481,8 +2478,6 @@ function renderWeekdayChart() {
 }
 
 // ==================== THEME TOGGLE (Feature 3.4) ====================
-
-const THEME_KEY = 'theme';
 
 function initTheme() {
     const saved = localStorage.getItem(THEME_KEY) || 'dark';
