@@ -370,6 +370,193 @@ function getLastMonthCategorySpending() {
     return spending;
 }
 
+// ==================== MONTH NAVIGATION STATE ====================
+
+let viewedMonth = getCurrentMonth();
+
+function getExpensesForMonth(month, year) {
+    const expenses = getExpenses();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const targetMonth = months[month];
+    const targetYear = String(year);
+
+    return expenses.filter(exp => {
+        const parts = exp.date.split(' ');
+        return parts[1] === targetMonth && parts[2] === targetYear;
+    });
+}
+
+function getExpensesForPreviousMonth(month, year) {
+    const prevMonth = month === 0 ? 11 : month - 1;
+    const prevYear = month === 0 ? year - 1 : year;
+    return getExpensesForMonth(prevMonth, prevYear);
+}
+
+// ==================== CATEGORY COLORS ====================
+
+const CATEGORY_COLORS = {
+    'Food': '#FF6B57',
+    'Grocery': '#FFB648',
+    'Electronics': '#6C5CE7',
+    'Gym': '#2ECC71',
+    'Fuel': '#F5A623',
+    'Shopping': '#EC407A',
+    'Travel': '#26C6DA',
+    'Entertainment': '#AB47BC',
+    'Bills': '#78909C',
+    'Investment': '#3FE8B0',
+    'Medical': '#EF4444',
+    'Subscription': '#7E57C2',
+    'Family': '#FF7043',
+    'Others': '#64646F'
+};
+
+const EXTRA_COLORS = ['#29b6f6', '#9ccc65', '#8d6e63', '#26c6da', '#ffee58', '#ec407a'];
+
+function getCategoryColor(category) {
+    if (CATEGORY_COLORS[category]) return CATEGORY_COLORS[category];
+    // For custom categories, assign deterministically based on name hash
+    let hash = 0;
+    for (let i = 0; i < category.length; i++) {
+        hash = category.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return EXTRA_COLORS[Math.abs(hash) % EXTRA_COLORS.length];
+}
+
+// ==================== INCOME LOG HELPERS (Bug Fix 2.1) ====================
+
+function getCurrentMonthIncomeLog() {
+    const log = getIncomeLog();
+    const { month, year } = getCurrentMonth();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentMonthStr = months[month];
+    const currentYearStr = String(year);
+
+    return log.filter(entry => {
+        const parts = entry.date.split(' ');
+        return parts[1] === currentMonthStr && parts[2] === currentYearStr;
+    });
+}
+
+function getEffectiveIncome() {
+    const finances = getFinances();
+    const monthlyIncomeLog = getCurrentMonthIncomeLog();
+    const loggedIncome = monthlyIncomeLog.reduce((sum, entry) => sum + entry.amount, 0);
+    return finances.income + loggedIncome;
+}
+
+// ==================== GOAL CELEBRATIONS (Bug Fix 2.3) ====================
+
+const GOAL_CELEBRATIONS_KEY = 'goal_celebrations';
+
+function getGoalCelebrations() {
+    const data = localStorage.getItem(GOAL_CELEBRATIONS_KEY);
+    return data ? JSON.parse(data) : {};
+}
+
+function saveGoalCelebrations(celebrations) {
+    localStorage.setItem(GOAL_CELEBRATIONS_KEY, JSON.stringify(celebrations));
+}
+
+function checkGoalCelebrations(goals) {
+    const celebrations = getGoalCelebrations();
+    
+    goals.forEach((goal, index) => {
+        if (goal.target <= 0) return;
+        const percent = (goal.current / goal.target) * 100;
+        const key = `${goal.name}_${index}`;
+        const lastCelebrated = celebrations[key] || 0;
+        
+        const thresholds = [25, 50, 75, 100];
+        for (const threshold of thresholds) {
+            if (percent >= threshold && lastCelebrated < threshold) {
+                celebrations[key] = threshold;
+                // Trigger celebration on the goal element
+                setTimeout(() => spawnCelebration(index), 300);
+                break;
+            }
+        }
+    });
+    
+    saveGoalCelebrations(celebrations);
+}
+
+function spawnCelebration(goalIndex) {
+    const goalItems = document.querySelectorAll('.goal-item');
+    const goalEl = goalItems[goalIndex];
+    if (!goalEl) return;
+    
+    goalEl.style.position = 'relative';
+    const colors = ['#FF6B57', '#FFB648', '#3FE8B0', '#6C5CE7', '#EFFFF8'];
+    
+    for (let i = 0; i < 12; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'celebration-particle';
+        const angle = (i / 12) * 360;
+        const distance = 40 + Math.random() * 30;
+        const tx = Math.cos(angle * Math.PI / 180) * distance;
+        const ty = Math.sin(angle * Math.PI / 180) * distance;
+        particle.style.setProperty('--tx', `${tx}px`);
+        particle.style.setProperty('--ty', `${ty}px`);
+        particle.style.left = '50%';
+        particle.style.top = '50%';
+        particle.style.background = colors[i % colors.length];
+        goalEl.appendChild(particle);
+        
+        particle.addEventListener('animationend', () => particle.remove());
+    }
+}
+
+// ==================== NET WORTH SNAPSHOTS (Feature 3.5) ====================
+
+const NETWORTH_KEY = 'networth_snapshots';
+
+function getNetworthSnapshots() {
+    const data = localStorage.getItem(NETWORTH_KEY);
+    return data ? JSON.parse(data) : [];
+}
+
+function saveNetworthSnapshot(value) {
+    const snapshots = getNetworthSnapshots();
+    const { month, year } = getCurrentMonth();
+    
+    // Update or add current month's snapshot
+    const existing = snapshots.findIndex(s => s.month === month && s.year === year);
+    if (existing >= 0) {
+        snapshots[existing].value = value;
+    } else {
+        snapshots.push({ month, year, value });
+    }
+    
+    // Keep only last 12 months
+    while (snapshots.length > 12) snapshots.shift();
+    localStorage.setItem(NETWORTH_KEY, JSON.stringify(snapshots));
+}
+
+// ==================== SEARCH/FILTER STATE (Feature 3.2) ====================
+
+let historySearchQuery = '';
+let historyFilterCategory = '';
+let historyFilterAccount = '';
+
+function filterExpenses(expenses, { query, category, account }) {
+    return expenses.filter(exp => {
+        if (category && exp.category !== category) return false;
+        if (account && exp.account !== account) return false;
+        if (query) {
+            const q = query.toLowerCase();
+            const matchReason = (exp.reason || '').toLowerCase().includes(q);
+            const matchCategory = (exp.category || '').toLowerCase().includes(q);
+            const matchAccount = (exp.account || '').toLowerCase().includes(q);
+            const matchTags = (exp.tags || '').toLowerCase().includes(q);
+            if (!matchReason && !matchCategory && !matchAccount && !matchTags) return false;
+        }
+        return true;
+    });
+}
+
 // ==================== FORMAT HELPERS ====================
 
 function formatINR(amount) {
@@ -507,7 +694,7 @@ function showPage(page) {
     if (navBtn) navBtn.classList.add('active');
 
     if (page === 'entry') updateEntryPage();
-    if (page === 'history') renderHistory();
+    if (page === 'history') { renderFilterChips(); renderHistory(); }
     if (page === 'budget') renderBudget();
     if (page === 'summary') renderSummary();
     if (page === 'analytics') renderAnalytics();
@@ -655,7 +842,8 @@ function updateEntryPage() {
     }
 
     // Savings nudge
-    const saved = Math.max(0, finances.income - getFixedTotal() - monthTotal);
+    const effectiveInc = getEffectiveIncome();
+    const saved = Math.max(0, effectiveInc - getFixedTotal() - monthTotal);
     const nudgeEl = document.getElementById('savings-nudge');
     const nudgeText = document.getElementById('savings-nudge-text');
     if (saved > 0) {
@@ -709,15 +897,18 @@ function renderTodayTransactions() {
     }
 
     const reversed = [...todayExpenses].reverse();
-    list.innerHTML = reversed.map(exp => `
-        <div class="today-tx-item">
+    list.innerHTML = reversed.map(exp => {
+        const catColor = getCategoryColor(exp.category || 'Others');
+        const tagHtml = exp.tags ? `<div class="tag-pills">${exp.tags.split(/[,\s]+/).filter(t => t).map(t => `<span class="tag-pill">${escapeHTML(t)}</span>`).join('')}</div>` : '';
+        return `<div class="today-tx-item">
             <div class="today-tx-left">
                 <span class="today-tx-reason">${escapeHTML(exp.reason || exp.category || 'Expense')}</span>
-                <span class="today-tx-meta">${escapeHTML(exp.category)}${exp.account ? ' · ' + escapeHTML(exp.account) : ''}</span>
+                <span class="today-tx-meta"><span class="cat-dot" style="background:${catColor}"></span>${escapeHTML(exp.category)}${exp.account ? ' · ' + escapeHTML(exp.account) : ''}</span>
+                ${tagHtml}
             </div>
             <span class="today-tx-amount">${formatINR(exp.amount)}</span>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 }
 
 updateEntryPage();
@@ -848,9 +1039,9 @@ expenseForm.addEventListener('submit', function(e) {
 // ==================== HISTORY PAGE ====================
 
 const CHART_COLORS = [
-    '#6C63FF', '#00E676', '#FFB74D', '#FF5252', '#ab47bc',
-    '#26c6da', '#ffee58', '#ec407a', '#8d6e63', '#78909c',
-    '#7e57c2', '#29b6f6', '#9ccc65', '#ff7043'
+    '#FF6B57', '#FFB648', '#6C5CE7', '#2ECC71', '#F5A623',
+    '#EC407A', '#26C6DA', '#AB47BC', '#78909C', '#3FE8B0',
+    '#EF4444', '#7E57C2', '#FF7043', '#64646F'
 ];
 
 function renderPieChart(expenses) {
@@ -876,7 +1067,7 @@ function renderPieChart(expenses) {
     let svgContent = '';
 
     if (sorted.length === 1) {
-        svgContent = `<circle cx="100" cy="100" r="80" fill="${CHART_COLORS[0]}"/>`;
+        svgContent = `<circle cx="100" cy="100" r="80" fill="${getCategoryColor(sorted[0][0])}"/>`;
     } else {
         sorted.forEach(([, amount], index) => {
             const sliceAngle = (amount / total) * 360;
@@ -889,7 +1080,7 @@ function renderPieChart(expenses) {
             const y2 = 100 + 80 * Math.sin(endRad);
 
             const largeArc = sliceAngle > 180 ? 1 : 0;
-            const color = CHART_COLORS[index % CHART_COLORS.length];
+            const color = getCategoryColor(sorted[index][0]);
 
             svgContent += `<path d="M100,100 L${x1},${y1} A80,80 0 ${largeArc},1 ${x2},${y2} Z" fill="${color}"/>`;
             cumulativeAngle += sliceAngle;
@@ -900,7 +1091,7 @@ function renderPieChart(expenses) {
 
     chartLegend.innerHTML = sorted.map(([category, amount], index) => {
         const percent = ((amount / total) * 100).toFixed(0);
-        const color = CHART_COLORS[index % CHART_COLORS.length];
+        const color = getCategoryColor(category);
         return `<div class="legend-item">
             <span class="legend-dot" style="background:${color}"></span>
             <span>${category}</span>
@@ -920,7 +1111,10 @@ function renderInsights(expenses) {
     }
 
     const total = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-    const dayOfMonth = new Date().getDate();
+    const now = getCurrentMonth();
+    const isCurrentMonth = viewedMonth.month === now.month && viewedMonth.year === now.year;
+    const daysInMonth = new Date(viewedMonth.year, viewedMonth.month + 1, 0).getDate();
+    const dayOfMonth = isCurrentMonth ? new Date().getDate() : daysInMonth;
     const dailyAvg = dayOfMonth > 0 ? total / dayOfMonth : 0;
     const highest = Math.max(...expenses.map(exp => exp.amount));
 
@@ -943,31 +1137,43 @@ function renderInsights(expenses) {
 function renderMoMComparison(expenses) {
     const momEl = document.getElementById('mom-comparison');
     const momText = document.getElementById('mom-text');
-    const lastMonthExpenses = getLastMonthExpenses();
+    const prevExpenses = getExpensesForPreviousMonth(viewedMonth.month, viewedMonth.year);
 
-    if (lastMonthExpenses.length === 0 || expenses.length === 0) {
+    if (prevExpenses.length === 0 || expenses.length === 0) {
         momEl.classList.add('hidden');
         return;
     }
 
     const currentTotal = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-    const lastTotal = lastMonthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const lastTotal = prevExpenses.reduce((sum, exp) => sum + exp.amount, 0);
     const diff = currentTotal - lastTotal;
 
     if (diff < 0) {
-        momText.innerHTML = `<span class="mom-positive">↓ ${formatINR(Math.abs(diff))} less than last month</span>`;
+        momText.innerHTML = `<span class="mom-positive">↓ ${formatINR(Math.abs(diff))} less than previous month</span>`;
     } else if (diff > 0) {
-        momText.innerHTML = `<span class="mom-negative">↑ ${formatINR(diff)} more than last month</span>`;
+        momText.innerHTML = `<span class="mom-negative">↑ ${formatINR(diff)} more than previous month</span>`;
     } else {
-        momText.innerHTML = `<span>Same as last month</span>`;
+        momText.innerHTML = `<span>Same as previous month</span>`;
     }
     momEl.classList.remove('hidden');
 }
 
 function renderCategoryTrends(expenses) {
     const trendsEl = document.getElementById('category-trends');
-    const lastMonthSpending = getLastMonthCategorySpending();
-    const currentSpending = getCategorySpending();
+    const prevExpenses = getExpensesForPreviousMonth(viewedMonth.month, viewedMonth.year);
+    
+    // Get last month spending relative to viewed month
+    const lastMonthSpending = {};
+    prevExpenses.forEach(exp => {
+        const cat = exp.category || 'Others';
+        lastMonthSpending[cat] = (lastMonthSpending[cat] || 0) + exp.amount;
+    });
+    
+    const currentSpending = {};
+    expenses.forEach(exp => {
+        const cat = exp.category || 'Others';
+        currentSpending[cat] = (currentSpending[cat] || 0) + exp.amount;
+    });
 
     // Only show if we have last month data
     if (Object.keys(lastMonthSpending).length === 0) {
@@ -1020,38 +1226,90 @@ function renderCategoryTrends(expenses) {
 }
 
 function renderHistory() {
-    const expenses = getCurrentMonthExpenses();
+    const { month, year } = viewedMonth;
+    const expenses = getExpensesForMonth(month, year);
     const historyList = document.getElementById('history-list');
     const totalAmount = document.getElementById('history-total-amount');
     const monthTitle = document.getElementById('history-month-title');
 
-    const { month, year } = getCurrentMonth();
     monthTitle.textContent = `${getMonthName(month)} ${year}`;
 
     const total = expenses.reduce((sum, exp) => sum + exp.amount, 0);
     totalAmount.textContent = formatINR(total);
+
+    // Update nav button states
+    const prevBtn = document.getElementById('month-prev-btn');
+    const nextBtn = document.getElementById('month-next-btn');
+    if (prevBtn) {
+        // Check if there's any data before this month
+        const allExpenses = getExpenses();
+        prevBtn.disabled = allExpenses.length === 0;
+    }
+    if (nextBtn) {
+        const now = getCurrentMonth();
+        nextBtn.disabled = (month === now.month && year === now.year);
+    }
 
     renderPieChart(expenses);
     renderInsights(expenses);
     renderMoMComparison(expenses);
     renderCategoryTrends(expenses);
 
-    if (expenses.length === 0) {
-        historyList.innerHTML = '<p class="empty-state">No expenses yet this month.</p>';
+    // Apply search/filter
+    const filtered = filterExpenses(expenses, {
+        query: historySearchQuery,
+        category: historyFilterCategory,
+        account: historyFilterAccount
+    });
+
+    if (filtered.length === 0) {
+        if (expenses.length === 0) {
+            historyList.innerHTML = '<p class="empty-state">No expenses this month.</p>';
+        } else {
+            historyList.innerHTML = '<p class="empty-state">No matching entries found.</p>';
+        }
         return;
     }
 
-    const reversed = [...expenses].reverse();
-    historyList.innerHTML = reversed.map(exp => `
-        <div class="history-item">
+    const isCurrentMonth = month === getCurrentMonth().month && year === getCurrentMonth().year;
+
+    const reversed = [...filtered].reverse();
+    historyList.innerHTML = reversed.map(exp => {
+        const catColor = getCategoryColor(exp.category || 'Others');
+        const tagHtml = exp.tags ? `<div class="tag-pills">${exp.tags.split(/[,\s]+/).filter(t => t).map(t => `<span class="tag-pill">${escapeHTML(t)}</span>`).join('')}</div>` : '';
+        const deleteBtn = isCurrentMonth ? `<button class="history-item-delete" onclick="handleDelete('${exp.id}')" aria-label="Delete expense">×</button>` : '';
+        
+        return `<div class="history-item">
             <div class="history-item-left">
                 <span class="history-item-reason">${escapeHTML(exp.reason || exp.category || 'Expense')}</span>
-                <span class="history-item-meta">${exp.date}${exp.category ? ' · ' + escapeHTML(exp.category) : ''}${exp.account ? ' · ' + escapeHTML(exp.account) : ''}</span>
+                <span class="history-item-meta"><span class="cat-dot" style="background:${catColor}"></span>${exp.date}${exp.category ? ' · ' + escapeHTML(exp.category) : ''}${exp.account ? ' · ' + escapeHTML(exp.account) : ''}</span>
+                ${tagHtml}
             </div>
             <span class="history-item-amount">${formatINR(exp.amount)}</span>
-            <button class="history-item-delete" onclick="handleDelete('${exp.id}')" aria-label="Delete expense">×</button>
-        </div>
-    `).join('');
+            ${deleteBtn}
+        </div>`;
+    }).join('');
+}
+
+// Month navigation handlers
+function navigateMonth(direction) {
+    viewedMonth.month += direction;
+    if (viewedMonth.month > 11) {
+        viewedMonth.month = 0;
+        viewedMonth.year++;
+    } else if (viewedMonth.month < 0) {
+        viewedMonth.month = 11;
+        viewedMonth.year--;
+    }
+    // Reset filters on month change
+    historySearchQuery = '';
+    historyFilterCategory = '';
+    historyFilterAccount = '';
+    const searchInput = document.getElementById('history-search');
+    if (searchInput) searchInput.value = '';
+    // Clear active filter chips
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    renderHistory();
 }
 
 let lastDeletedExpense = null;
@@ -1094,6 +1352,40 @@ document.getElementById('undo-btn').addEventListener('click', () => {
         renderHistory();
     }
 });
+
+// Search & Filter handlers
+document.getElementById('history-search').addEventListener('input', (e) => {
+    historySearchQuery = e.target.value.trim();
+    renderHistory();
+});
+
+function renderFilterChips() {
+    const container = document.getElementById('history-filter-chips');
+    const categories = getCustomCategories();
+    
+    container.innerHTML = categories.map(cat => {
+        const color = getCategoryColor(cat);
+        const isActive = historyFilterCategory === cat;
+        return `<button class="filter-chip ${isActive ? 'active' : ''}" data-category="${cat}" style="${isActive ? '' : `border-color:transparent;`}">
+            <span class="cat-dot" style="background:${color}"></span>${cat}
+        </button>`;
+    }).join('');
+    
+    container.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const cat = chip.dataset.category;
+            if (historyFilterCategory === cat) {
+                historyFilterCategory = '';
+                chip.classList.remove('active');
+            } else {
+                container.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                historyFilterCategory = cat;
+                chip.classList.add('active');
+            }
+            renderHistory();
+        });
+    });
+}
 
 // ==================== BUDGET PAGE ====================
 
@@ -1139,12 +1431,13 @@ function renderBudget() {
             const percent = Math.min((spent / budget) * 100, 100);
             const actualPercent = (spent / budget) * 100;
             const isOver = spent > budget;
-            const barColor = isOver ? 'var(--negative)' : percent > 80 ? 'var(--warning)' : 'var(--accent)';
+            const barColor = isOver ? 'var(--budget-over)' : percent > 80 ? 'var(--budget-warn)' : 'var(--accent)';
             const status = isOver ? `₹${(spent - budget).toLocaleString('en-IN')} over` : `₹${(budget - spent).toLocaleString('en-IN')} left`;
+            const catColor = getCategoryColor(cat);
 
             return { html: `<div class="budget-item">
                 <div class="budget-item-header">
-                    <span class="budget-item-name">${cat}</span>
+                    <span class="budget-item-name"><span class="cat-dot" style="background:${catColor}"></span>${cat}</span>
                     <span class="budget-item-amounts">${formatINR(spent)} / ${formatINR(budget)}</span>
                 </div>
                 <div class="budget-item-bar">
@@ -1194,17 +1487,20 @@ function renderSummary() {
     const finances = getFinances();
     const expenses = getCurrentMonthExpenses();
     const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const effectiveIncome = getEffectiveIncome();
 
     // Net Worth = Bank + Investments - Variable Spending this month
-    // (Fixed expenses already reduced bank balance before you recorded it)
     const netWorth = (finances.bank || 0) + (finances.investments || 0) - totalSpent;
     const fixedTotal = getFixedTotal();
-    const saved = Math.max(0, finances.income - fixedTotal - totalSpent);
-    const savingsRate = finances.income > 0 ? (saved / finances.income) * 100 : 0;
+    const saved = Math.max(0, effectiveIncome - fixedTotal - totalSpent);
+    const savingsRate = effectiveIncome > 0 ? (saved / effectiveIncome) * 100 : 0;
+
+    // Save net worth snapshot
+    saveNetworthSnapshot(netWorth);
 
     // Animate numbers
     animateNumber(document.getElementById('summary-networth'), netWorth);
-    animateNumber(document.getElementById('summary-income'), finances.income);
+    animateNumber(document.getElementById('summary-income'), effectiveIncome);
     animateNumber(document.getElementById('summary-spent'), totalSpent);
     animateNumber(document.getElementById('summary-saved'), saved);
     animatePercent(document.getElementById('summary-savings-rate'), Math.max(0, Math.round(savingsRate)));
@@ -1214,10 +1510,90 @@ function renderSummary() {
     document.getElementById('fin-bank').textContent = formatINR(finances.bank);
     document.getElementById('fin-investments').textContent = formatINR(finances.investments);
 
+    // Show logged income entries
+    renderIncomeLogDisplay();
+
+    // Net worth sparkline
+    renderNetworthSparkline();
+
     // Fixed expenses section
     renderFixedExpenses();
 
     renderGoals();
+}
+
+function renderIncomeLogDisplay() {
+    const monthlyLog = getCurrentMonthIncomeLog();
+    let container = document.getElementById('income-log-display');
+    
+    // Create the container if it doesn't exist
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'income-log-display';
+        const financeItems = document.querySelector('.finance-items');
+        if (financeItems) financeItems.after(container);
+    }
+    
+    if (monthlyLog.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    const total = monthlyLog.reduce((sum, e) => sum + e.amount, 0);
+    container.innerHTML = `
+        <div class="income-log-list">
+            <div style="font-size:0.6875rem;color:var(--text-tertiary);padding:var(--space-2) var(--space-3);text-transform:uppercase;letter-spacing:0.04em;">
+                Additional Income This Month (+${formatINR(total)})
+            </div>
+            ${monthlyLog.map(entry => `
+                <div class="income-log-item">
+                    <span class="income-log-source">${escapeHTML(entry.source)}</span>
+                    <span class="income-log-amount">+${formatINR(entry.amount)}</span>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function renderNetworthSparkline() {
+    const snapshots = getNetworthSnapshots();
+    let container = document.getElementById('networth-sparkline');
+    
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'networth-sparkline';
+        container.className = 'networth-sparkline';
+        const hero = document.querySelector('.summary-hero');
+        if (hero) hero.appendChild(container);
+    }
+    
+    if (snapshots.length < 2) {
+        container.innerHTML = '<span class="sparkline-label">Trend appears after 2+ months of data</span>';
+        return;
+    }
+    
+    const values = snapshots.slice(-6).map(s => s.value);
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const range = max - min || 1;
+    const width = 200;
+    const height = 36;
+    
+    const points = values.map((v, i) => {
+        const x = (i / (values.length - 1)) * width;
+        const y = height - ((v - min) / range) * (height - 4) - 2;
+        return `${x},${y}`;
+    }).join(' ');
+    
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const labels = snapshots.slice(-6).map(s => months[s.month]);
+    
+    container.innerHTML = `
+        <span class="sparkline-label">Net Worth Trend (${labels[0]}–${labels[labels.length - 1]})</span>
+        <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+            <polyline points="${points}" fill="none" stroke="var(--positive)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    `;
 }
 
 function renderGoals() {
@@ -1238,7 +1614,7 @@ function renderGoals() {
                 <span class="goal-item-percent">${percent.toFixed(0)}%</span>
             </div>
             <div class="goal-item-bar">
-                <div class="goal-item-bar-fill" style="width:${percent}%"></div>
+                <div class="goal-item-bar-fill" style="width:${percent}%;background:var(--positive)"></div>
             </div>
             <div class="goal-item-details">
                 <span>${formatINR(goal.current)} saved</span>
@@ -1246,6 +1622,9 @@ function renderGoals() {
             </div>
         </div>`;
     }).join('');
+
+    // Check for celebrations
+    checkGoalCelebrations(goals);
 }
 
 // Finances Modal
@@ -1450,6 +1829,7 @@ document.getElementById('save-goals-btn').addEventListener('click', () => {
 
 function renderAnalytics() {
     renderHealthScore();
+    renderWeekdayChart();
     renderAccountSpending();
     renderMonthlyReport();
     renderSubscriptions();
@@ -1457,6 +1837,7 @@ function renderAnalytics() {
 
 function renderHealthScore() {
     const finances = getFinances();
+    const effectiveIncome = getEffectiveIncome();
     const expenses = getCurrentMonthExpenses();
     const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
     const fixedTotal = getFixedTotal();
@@ -1466,7 +1847,7 @@ function renderHealthScore() {
 
     // Calculate score components (each out of 25, total 100)
     // 1. Savings Rate (25 pts) — 20%+ = full marks
-    const savingsRate = finances.income > 0 ? ((finances.income - fixedTotal - totalSpent) / finances.income) : 0;
+    const savingsRate = effectiveIncome > 0 ? ((effectiveIncome - fixedTotal - totalSpent) / effectiveIncome) : 0;
     const savingsScore = Math.min(25, Math.max(0, Math.round(savingsRate * 125)));
 
     // 2. Budget Adherence (25 pts) — spending within budget
@@ -1559,18 +1940,19 @@ function renderAccountSpending() {
 
 function renderMonthlyReport() {
     const finances = getFinances();
+    const effectiveIncome = getEffectiveIncome();
     const expenses = getCurrentMonthExpenses();
     const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
     const fixedTotal = getFixedTotal();
-    const saved = Math.max(0, finances.income - fixedTotal - totalSpent);
-    const savingsRate = finances.income > 0 ? Math.round((saved / finances.income) * 100) : 0;
+    const saved = Math.max(0, effectiveIncome - fixedTotal - totalSpent);
+    const savingsRate = effectiveIncome > 0 ? Math.round((saved / effectiveIncome) * 100) : 0;
     const dayOfMonth = new Date().getDate();
     const dailyAvg = dayOfMonth > 0 ? Math.round(totalSpent / dayOfMonth) : 0;
     const highest = expenses.length > 0 ? Math.max(...expenses.map(e => e.amount)) : 0;
 
     const report = document.getElementById('monthly-report');
     report.innerHTML = `
-        <div class="report-row"><span>Total Income</span><span>${formatINR(finances.income)}</span></div>
+        <div class="report-row"><span>Total Income</span><span>${formatINR(effectiveIncome)}</span></div>
         <div class="report-row"><span>Fixed Expenses</span><span>${formatINR(fixedTotal)}</span></div>
         <div class="report-row"><span>Variable Spending</span><span>${formatINR(totalSpent)}</span></div>
         <div class="report-row"><span>Total Saved</span><span class="positive">${formatINR(saved)}</span></div>
@@ -1931,8 +2313,17 @@ function rebuildAccountChips() {
 // ==================== SETTINGS PAGE ====================
 
 function renderSettings() {
+    renderThemeToggle();
     renderCategorySettings();
     renderAccountSettings();
+}
+
+function renderThemeToggle() {
+    const currentTheme = localStorage.getItem(THEME_KEY) || 'dark';
+    const toggle = document.getElementById('theme-toggle-btn');
+    if (toggle) {
+        toggle.classList.toggle('active', currentTheme === 'light');
+    }
 }
 
 function renderCategorySettings() {
@@ -2040,6 +2431,88 @@ document.getElementById('clear-all-data-btn').addEventListener('click', () => {
         }
     }
 });
+
+// ==================== ANALYTICS: WEEKDAY SPENDING (Feature 3.3) ====================
+
+function renderWeekdayChart() {
+    const expenses = getCurrentMonthExpenses();
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const daySums = [0, 0, 0, 0, 0, 0, 0];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    expenses.forEach(exp => {
+        const parts = exp.date.split(' ');
+        const day = parseInt(parts[0]);
+        const monthIdx = months.indexOf(parts[1]);
+        const year = parseInt(parts[2]);
+        const d = new Date(year, monthIdx, day);
+        daySums[d.getDay()] += exp.amount;
+    });
+
+    const max = Math.max(...daySums, 1);
+    
+    let container = document.getElementById('weekday-chart-section');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'weekday-chart-section';
+        container.className = 'summary-section';
+        // Insert before the account spending section
+        const accountSection = document.querySelector('#page-analytics .summary-section');
+        if (accountSection) {
+            accountSection.before(container);
+        } else {
+            document.getElementById('page-analytics').appendChild(container);
+        }
+    }
+
+    container.innerHTML = `
+        <div class="section-header"><h3>Spending by Day of Week</h3></div>
+        <div class="weekday-chart">
+            ${dayNames.map((name, i) => {
+                const height = daySums[i] > 0 ? Math.max(4, (daySums[i] / max) * 70) : 2;
+                return `<div class="weekday-bar-container">
+                    <div class="weekday-bar" style="height:${height}px"></div>
+                    <span class="weekday-label">${name}</span>
+                </div>`;
+            }).join('')}
+        </div>
+    `;
+}
+
+// ==================== THEME TOGGLE (Feature 3.4) ====================
+
+const THEME_KEY = 'theme';
+
+function initTheme() {
+    const saved = localStorage.getItem(THEME_KEY) || 'dark';
+    document.documentElement.setAttribute('data-theme', saved);
+    updateThemeColor(saved);
+    // Set toggle button state
+    const toggle = document.getElementById('theme-toggle-btn');
+    if (toggle) toggle.classList.toggle('active', saved === 'light');
+}
+
+function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem(THEME_KEY, next);
+    updateThemeColor(next);
+    
+    // Update toggle button state
+    const toggle = document.getElementById('theme-toggle-btn');
+    if (toggle) toggle.classList.toggle('active', next === 'light');
+}
+
+function updateThemeColor(theme) {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+        meta.setAttribute('content', theme === 'light' ? '#FFFFFF' : '#0A0A0F');
+    }
+}
+
+initTheme();
 
 // Initialize custom chips on load
 rebuildCategoryChips();

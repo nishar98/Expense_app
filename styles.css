@@ -27,12 +27,38 @@
     --accent-glow: rgba(108, 92, 231, 0.24);
 
     /* Semantic (exactly 3) */
-    --positive: #2ECC71;
-    --positive-dim: rgba(46, 204, 113, 0.12);
+    --positive: #3FE8B0;
+    --positive-dim: rgba(63, 232, 176, 0.12);
     --warning: #F5A623;
     --warning-dim: rgba(245, 166, 35, 0.12);
     --negative: #EF4444;
     --negative-dim: rgba(239, 68, 68, 0.12);
+
+    /* Info (for insights/neutral banners) */
+    --info: #4DA3FF;
+    --info-dim: rgba(77, 163, 255, 0.12);
+
+    /* Budget overage (distinct from generic warning) */
+    --budget-over: #FF6B57;
+    --budget-over-dim: rgba(255, 107, 87, 0.12);
+    --budget-warn: #FFB648;
+    --budget-warn-dim: rgba(255, 182, 72, 0.12);
+
+    /* Category Colors */
+    --cat-food: #FF6B57;
+    --cat-grocery: #FFB648;
+    --cat-electronics: #6C5CE7;
+    --cat-gym: #2ECC71;
+    --cat-fuel: #F5A623;
+    --cat-shopping: #EC407A;
+    --cat-travel: #26C6DA;
+    --cat-entertainment: #AB47BC;
+    --cat-bills: #78909C;
+    --cat-investment: #3FE8B0;
+    --cat-medical: #EF4444;
+    --cat-subscription: #7E57C2;
+    --cat-family: #FF7043;
+    --cat-others: #64646F;
 
     /* Spacing (4px grid) */
     --space-1: 4px;
@@ -66,6 +92,7 @@
     /* Layout */
     --nav-height: 64px;
     --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --bg-input: var(--bg-1);
 }
 
 /* ==================== RESET ==================== */
@@ -195,7 +222,7 @@ body {
     font-size: 0.6875rem;
     color: var(--text-tertiary);
 }
-.velocity-insight .on-track { color: var(--positive); }
+.velocity-insight .on-track { color: var(--info); }
 .velocity-insight .over-pace { color: var(--warning); }
 .velocity-insight .danger-pace { color: var(--negative); }
 
@@ -1578,4 +1605,368 @@ input:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 
     flex-direction: column;
     gap: var(--space-3);
     margin-top: var(--space-4);
+}
+
+/* ==================== LIGHT THEME ==================== */
+[data-theme="light"] {
+    --bg-0: #F8F9FC;
+    --bg-1: #FFFFFF;
+    --bg-2: #F0F1F5;
+    --bg-3: #E4E5EC;
+    --border-subtle: #DDDEE6;
+    --border-visible: #C8C9D4;
+    --text-primary: #1A1A2E;
+    --text-secondary: #4A4A5E;
+    --text-tertiary: #7A7A8E;
+    --accent: #5B4DD4;
+    --accent-soft: rgba(91, 77, 212, 0.08);
+    --accent-glow: rgba(91, 77, 212, 0.16);
+    --positive: #0E9A6D;
+    --positive-dim: rgba(14, 154, 109, 0.08);
+    --warning: #C97F00;
+    --warning-dim: rgba(201, 127, 0, 0.08);
+    --negative: #DC2626;
+    --negative-dim: rgba(220, 38, 38, 0.08);
+    --info: #2B7FD4;
+    --info-dim: rgba(43, 127, 212, 0.08);
+    --budget-over: #E84D3A;
+    --budget-over-dim: rgba(232, 77, 58, 0.08);
+    --budget-warn: #D9940A;
+    --budget-warn-dim: rgba(217, 148, 10, 0.08);
+    --shadow-1: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-2: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+    --shadow-3: 0 12px 32px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.06);
+    --shadow-glow: 0 4px 16px rgba(91,77,212,0.20);
+    --bg-input: #FFFFFF;
+}
+
+[data-theme="light"] body {
+    background-color: var(--bg-0);
+}
+
+[data-theme="light"] .bottom-nav {
+    background: rgba(255,255,255,0.95);
+    border-top: 1px solid var(--border-subtle);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme="light"] .chip {
+    background: var(--bg-1);
+    border-color: var(--border-subtle);
+    box-shadow: var(--shadow-1);
+}
+
+[data-theme="light"] .chip.selected {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+}
+
+[data-theme="light"] .modal-content {
+    background: var(--bg-1);
+    box-shadow: var(--shadow-3);
+}
+
+[data-theme="light"] .history-item,
+[data-theme="light"] .today-tx-item {
+    background: var(--bg-1);
+    box-shadow: var(--shadow-1);
+}
+
+[data-theme="light"] .budget-item,
+[data-theme="light"] .goal-item {
+    background: var(--bg-1);
+    box-shadow: var(--shadow-1);
+}
+
+[data-theme="light"] .summary-hero {
+    background: var(--bg-1);
+    box-shadow: var(--shadow-2);
+}
+
+[data-theme="light"] .health-score-card {
+    background: var(--bg-1);
+    box-shadow: var(--shadow-2);
+}
+
+[data-theme="light"] .nav-center-btn {
+    box-shadow: var(--shadow-2);
+}
+
+[data-theme="light"] #save-btn {
+    box-shadow: var(--shadow-2);
+}
+
+[data-theme="light"] .metric-card {
+    background: var(--bg-1);
+    box-shadow: var(--shadow-1);
+}
+
+[data-theme="light"] .insights-card {
+    background: var(--bg-1);
+    box-shadow: var(--shadow-1);
+}
+
+[data-theme="light"] .onboarding {
+    background: var(--bg-0);
+}
+
+/* ==================== THEME TOGGLE ==================== */
+.settings-gear {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    right: 16px;
+    z-index: 100;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: 50%;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 200ms var(--ease-standard);
+    box-shadow: var(--shadow-1);
+}
+
+.settings-gear:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.theme-toggle-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+    background: var(--bg-1);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--space-4);
+}
+
+.theme-toggle-label {
+    font-size: 0.8125rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.theme-toggle {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: var(--bg-3);
+    border-radius: var(--radius-full);
+    border: none;
+    cursor: pointer;
+    transition: background 200ms var(--ease-standard);
+}
+
+.theme-toggle.active {
+    background: var(--accent);
+}
+
+.theme-toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--text-primary);
+    transition: transform 200ms var(--ease-standard);
+}
+
+.theme-toggle.active::after {
+    transform: translateX(20px);
+    background: #ffffff;
+}
+
+/* ==================== CATEGORY COLOR DOTS ==================== */
+.cat-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+/* ==================== TAG PILLS ==================== */
+.tag-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.tag-pill {
+    display: inline-block;
+    padding: 1px 8px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: var(--radius-full);
+    font-size: 0.625rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
+/* ==================== MONTH NAVIGATION ==================== */
+.month-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.month-nav-btn {
+    background: var(--bg-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 160ms var(--ease-standard);
+}
+
+.month-nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+.month-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ==================== SEARCH & FILTER ==================== */
+.history-search-section {
+    margin-bottom: var(--space-4);
+}
+
+.history-search-input {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    background: var(--bg-1);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    font-family: var(--font);
+    transition: border-color 160ms var(--ease-standard);
+    margin-bottom: var(--space-3);
+}
+
+.history-search-input:focus { outline: none; border-color: var(--accent); }
+.history-search-input::placeholder { color: var(--text-tertiary); }
+
+.filter-chips {
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    padding-bottom: var(--space-2);
+    -webkit-overflow-scrolling: touch;
+}
+
+.filter-chip {
+    padding: var(--space-1) var(--space-3);
+    background: var(--bg-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-full);
+    font-size: 0.6875rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: var(--font);
+    transition: all 160ms var(--ease-standard);
+}
+
+.filter-chip.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ==================== WEEKDAY SPENDING ==================== */
+.weekday-chart {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-2);
+    height: 100px;
+    padding: var(--space-4);
+    background: var(--bg-1);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-5);
+}
+
+.weekday-bar-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    flex: 1;
+}
+
+.weekday-bar {
+    width: 100%;
+    max-width: 32px;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    background: var(--accent);
+    transition: height 400ms var(--ease-out-expo);
+    min-height: 2px;
+}
+
+.weekday-label {
+    font-size: 0.5625rem;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* ==================== NET WORTH SPARKLINE ==================== */
+.networth-sparkline {
+    margin-top: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--bg-1);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+}
+
+.networth-sparkline svg {
+    width: 100%;
+    height: 40px;
+}
+
+.sparkline-label {
+    font-size: 0.625rem;
+    color: var(--text-tertiary);
+    margin-bottom: var(--space-1);
+}
+
+/* ==================== INCOME LOG DISPLAY ==================== */
+.income-log-list {
+    margin-top: var(--space-3);
+}
+
+.income-log-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 0.75rem;
+}
+
+.income-log-item:last-child { border-bottom: none; }
+.income-log-source { color: var(--text-secondary); }
+.income-log-amount { color: var(--positive); font-weight: 600; }
+
+/* ==================== DAILY INSIGHT INFO COLOR ==================== */
+.daily-insight .on-track,
+.velocity-insight .on-track {
+    color: var(--info);
 }

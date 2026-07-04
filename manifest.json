@@ -1,7 +1,7 @@
 {
-    "name": "Expense Manager",
-    "short_name": "Expenses",
-    "description": "Personal Expense Management App",
+    "name": "Cache",
+    "short_name": "Cache",
+    "description": "Personal Expense Tracker — Track, Budget, Grow",
     "start_url": "./",
     "display": "standalone",
     "background_color": "#0A0A0F",
