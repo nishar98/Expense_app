@@ -1,0 +1,19 @@
+<svg width="380" height="96" viewBox="0 0 380 96" xmlns="http://www.w3.org/2000/svg" font-family="Inter, -apple-system, sans-serif">
+  <defs>
+    <linearGradient id="bgink" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1B1723"/>
+      <stop offset="100%" stop-color="#0F0D14"/>
+    </linearGradient>
+    <linearGradient id="barMint" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#17B583"/>
+      <stop offset="100%" stop-color="#3FE8B0"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="8" width="80" height="80" rx="20" fill="url(#bgink)"/>
+  <rect x="17" y="52" width="12" height="20" rx="5" fill="#FF6B57"/>
+  <rect x="34" y="38" width="12" height="34" rx="5" fill="#FFB648"/>
+  <rect x="51" y="22" width="12" height="50" rx="5" fill="url(#barMint)"/>
+
+  <text x="100" y="63" font-size="46" font-weight="700" fill="#F5F5F7" letter-spacing="-1">Cache</text>
+</svg>
