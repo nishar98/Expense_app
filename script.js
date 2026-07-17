@@ -560,6 +560,71 @@ function filterExpenses(expenses, { query, category, account }) {
     });
 }
 
+// ==================== ACCOUNT CLASSIFICATION ====================
+
+// Bank accounts: expenses reduce bank balance directly
+// Credit cards: expenses don't reduce bank balance until bill payment
+const BANK_ACCOUNTS = ['SBI Savings', 'ICICI Salary Account'];
+
+function isDebitAccount(accountName) {
+    return BANK_ACCOUNTS.includes(accountName);
+}
+
+function isCreditCard(accountName) {
+    return accountName && !isDebitAccount(accountName) && accountName !== '';
+}
+
+/**
+ * Get computed bank balance: base bank - all debit-account expenses this month
+ * - all credit card bill payments (category=Bills, account=credit card)
+ */
+function getComputedBankBalance() {
+    const finances = getFinances();
+    const expenses = getCurrentMonthExpenses();
+    
+    let deductions = 0;
+    expenses.forEach(exp => {
+        if (isDebitAccount(exp.account)) {
+            // Direct bank expense
+            deductions += exp.amount;
+        }
+    });
+    
+    return (finances.bank || 0) - deductions;
+}
+
+/**
+ * Get credit card outstanding for a specific card this month
+ */
+function getCardOutstanding(cardName) {
+    const expenses = getCurrentMonthExpenses();
+    let spent = 0;
+    let paid = 0;
+    
+    expenses.forEach(exp => {
+        if (exp.account === cardName && exp.category !== 'Bills') {
+            spent += exp.amount;
+        }
+        // Bill payment: category=Bills, reason mentions card name or account is the card
+        if (exp.category === 'Bills' && exp.account === cardName) {
+            paid += exp.amount;
+        }
+    });
+    
+    return Math.max(0, spent - paid);
+}
+
+/**
+ * Get net worth: computed bank balance + investments
+ * (credit card outstanding doesn't reduce net worth since
+ *  it hasn't left bank yet until bill payment)
+ */
+function getComputedNetWorth() {
+    const finances = getFinances();
+    const computedBank = getComputedBankBalance();
+    return computedBank + (finances.investments || 0);
+}
+
 // ==================== FORMAT HELPERS ====================
 
 function formatINR(amount) {
@@ -1029,10 +1094,17 @@ expenseForm.addEventListener('submit', function(e) {
     successMessage.classList.remove('hidden');
     setTimeout(() => successMessage.classList.add('hidden'), 1200);
 
-    // Reset (keep category and account sticky)
+    // Reset form completely (including category and account)
     amountInput.value = '';
     reasonInput.value = '';
     document.getElementById('tags-input').value = '';
+    
+    // Deselect category and account chips
+    selectedCategory = '';
+    selectedAccount = '';
+    document.querySelectorAll('#category-chips .chip').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('#account-chips .chip').forEach(c => c.classList.remove('selected'));
+    
     amountInput.focus();
 
     // Refresh stats
@@ -1369,8 +1441,8 @@ function renderFilterChips() {
     container.innerHTML = categories.map(cat => {
         const color = getCategoryColor(cat);
         const isActive = historyFilterCategory === cat;
-        return `<button class="filter-chip ${isActive ? 'active' : ''}" data-category="${cat}" style="${isActive ? '' : `border-color:transparent;`}">
-            <span class="cat-dot" style="background:${color}"></span>${cat}
+        return `<button class="filter-chip ${isActive ? 'active' : ''}" data-category="${cat}">
+            <span class="cat-dot" style="background:${color}"></span>${escapeHTML(cat)}
         </button>`;
     }).join('');
     
@@ -1379,12 +1451,11 @@ function renderFilterChips() {
             const cat = chip.dataset.category;
             if (historyFilterCategory === cat) {
                 historyFilterCategory = '';
-                chip.classList.remove('active');
             } else {
-                container.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
                 historyFilterCategory = cat;
-                chip.classList.add('active');
             }
+            // Re-render chips to update active state uniformly
+            renderFilterChips();
             renderHistory();
         });
     });
@@ -1492,8 +1563,8 @@ function renderSummary() {
     const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
     const effectiveIncome = getEffectiveIncome();
 
-    // Net Worth = Bank + Investments - Variable Spending this month
-    const netWorth = (finances.bank || 0) + (finances.investments || 0) - totalSpent;
+    // Net Worth = computed bank balance + investments (auto-adjusts based on expenses)
+    const netWorth = getComputedNetWorth();
     const fixedTotal = getFixedTotal();
     const saved = Math.max(0, effectiveIncome - fixedTotal - totalSpent);
     const savingsRate = effectiveIncome > 0 ? (saved / effectiveIncome) * 100 : 0;
@@ -1508,9 +1579,10 @@ function renderSummary() {
     animateNumber(document.getElementById('summary-saved'), saved);
     animatePercent(document.getElementById('summary-savings-rate'), Math.max(0, Math.round(savingsRate)));
 
-    // Finance section
+    // Finance section — show computed bank balance
+    const computedBank = getComputedBankBalance();
     document.getElementById('fin-income').textContent = formatINR(finances.income);
-    document.getElementById('fin-bank').textContent = formatINR(finances.bank);
+    document.getElementById('fin-bank').textContent = formatINR(computedBank);
     document.getElementById('fin-investments').textContent = formatINR(finances.investments);
 
     // Show logged income entries
